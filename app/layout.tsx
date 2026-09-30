@@ -18,13 +18,13 @@ export const metadata: Metadata = {
   description: "A careful AI memory for Ari's TNR and cat rescue work.",
   openGraph: {
     title: "TNR Assistant",
-    description: "Your rescue, remembered.",
+    description: "The full story of your rescue work.",
     images: [{ url: "/og.png", width: 1792, height: 928 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "TNR Assistant",
-    description: "Your rescue, remembered.",
+    description: "The full story of your rescue work.",
     images: ["/og.png"],
   },
   icons: {
