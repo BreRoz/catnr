@@ -36,3 +36,12 @@ test("renders database-backed cat history and operational metrics", () => {
   assert.match(page, /Cash received/);
   assert.match(page, /Operational records only/);
 });
+
+test("supports photo thumbnails, readable activity dates, and AI corrections", () => {
+  assert.match(route, /photoId/);
+  assert.match(route, /export async function PATCH/);
+  assert.match(route, /Complete corrected version from Ari/);
+  assert.match(page, /formatActivityDate/);
+  assert.match(page, /Save correction/);
+  assert.match(page, /SPEAK AN UPDATE/);
+});
