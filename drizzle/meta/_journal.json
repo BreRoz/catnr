@@ -15,6 +15,20 @@
       "when": 1790800392351,
       "tag": "0001_slippery_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791316800000,
+      "tag": "0002_secure_ownership",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791320400000,
+      "tag": "0003_reliable_recording",
+      "breakpoints": true
     }
   ]
 }
