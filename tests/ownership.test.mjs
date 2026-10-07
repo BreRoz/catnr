@@ -1,10 +1,12 @@
+import { migrations as allMigrations } from './helpers/migrations.mjs';
+import { linkMoney } from './helpers/money.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const sql = await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const sql = allMigrations;
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const correctionJS=ts.transpileModule(await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
@@ -12,12 +14,12 @@ const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',
 const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
 const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
-const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(linkMoney(validationSource),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
 const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const js=ts.transpileModule(linkMoney(source).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const db=new DatabaseSync(':memory:');db.exec(sql[0]);db.exec(sql[1]);
 db.exec("INSERT INTO cats(id,name,created_at,updated_at) VALUES('legacy','Legacy','now','now'); INSERT INTO people(id,owner_id,name,created_at) VALUES('local','local-owner','Legacy person','now')");
-db.exec(sql[2]);db.exec(sql[3]);db.exec(sql[4]);
+for(const migration of sql.slice(2))db.exec(migration);
 const binding={async batch(statements){db.exec('BEGIN');try{const r=[];for(const statement of statements)r.push(await statement.run());db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}},prepare(query){let values=[];return {bind(...v){values=v.map(x=>x===undefined?null:x);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return {results:db.prepare(query).all(...values)}},async run(){return db.prepare(query).run(...values)}}}};
 let photoReads=0;
 globalThis.__ownershipEnv={DB:binding,PHOTOS:{async get(){photoReads++;return {body:'photo',httpMetadata:{contentType:'image/jpeg'}}}}};
@@ -32,7 +34,7 @@ test('body ownership cannot override authenticated identity',async()=>{await api
 test('database rejects missing owners, reassignment and all foreign relationships',()=>{
  db.exec("INSERT INTO colonies(id,owner_id,name,created_at) VALUES('b-colony','B','Colony','now'); INSERT INTO transactions(id,owner_id,transaction_type,direction,date,description,created_at) VALUES('b-txn','B','cash','inflow','now','x','now')");
  for(const table of ['cats','colonies','people','ai_inputs','events','transactions','photos']){assert.throws(()=>db.exec(`UPDATE ${table} SET owner_id=NULL`));assert.throws(()=>db.exec(`UPDATE ${table} SET owner_id='C'`));}
- db.exec("INSERT INTO cats(id,owner_id,created_at,updated_at) VALUES('a-cat','A','now','now'); INSERT INTO events(id,owner_id,event_type,occurred_at,created_at) VALUES('a-event','A','x','now','now'); INSERT INTO photos(id,owner_id,storage_location,taken_at) VALUES('a-photo','A','cats/A/x','now'); INSERT INTO transactions(id,owner_id,transaction_type,direction,date,description,created_at) VALUES('a-txn','A','cash','inflow','now','x','now')");
+ db.exec("INSERT INTO cats(id,owner_id,created_at,updated_at) VALUES('a-cat','A','now','now'); INSERT INTO events(id,owner_id,event_type,occurred_at,created_at) VALUES('a-event','A','x','now','now'); INSERT INTO photos(id,owner_id,cat_id,storage_location,taken_at) VALUES('a-photo','A','a-cat','cats/A/x','now'); INSERT INTO transactions(id,owner_id,transaction_type,direction,date,description,created_at) VALUES('a-txn','A','cash','inflow','now','x','now')");
  const links={cats:{origin_colony_id:'b-colony'},events:{cat_id:'b-cat',person_id:'b-person',source_input_id:db.prepare('SELECT id FROM ai_inputs').get().id},photos:{cat_id:'b-cat',event_id:'b-event'},transactions:{person_id:'b-person',related_cat_id:'b-cat',related_event_id:'b-event',related_colony_id:'b-colony',source_input_id:db.prepare('SELECT id FROM ai_inputs').get().id}};
  for(const [table,columns] of Object.entries(links))for(const [column,id] of Object.entries(columns)){const owner=column==='source_input_id'?'B':'A';assert.throws(()=>db.prepare(`UPDATE ${table} SET ${column}=? WHERE owner_id=?`).run(id,owner));}
 

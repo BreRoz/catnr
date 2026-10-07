@@ -1,3 +1,5 @@
+import { migrations as allMigrations } from './helpers/migrations.mjs';
+import { linkMoney } from './helpers/money.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -7,14 +9,14 @@ import ts from 'typescript';
 const compile=src=>ts.transpileModule(src,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const url=js=>`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`;
 const read=n=>readFile(new URL(`../app/api/assistant/${n}.ts`,import.meta.url),'utf8');
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
-const validationURL=url(compile(await read('validation')));
+const migrations=allMigrations;
+const validationURL=url(compile(linkMoney(await read('validation'))));
 const v=await import(validationURL);
 const correctionURL=url(compile(await read('corrections')));
 const helperURL=url(compile(await read('reliability')));
 const env={};globalThis.__validationEnv=env;
 const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const api=await import(url(compile((await read('route')).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__validationEnv;'))));
+const api=await import(url(compile(linkMoney(await read('route')).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__validationEnv;'))));
 
 const statuses=new Set(["observed","captured","awaiting vet","recovering","foster","available for adoption","adoption pending","adopted","returned to colony","lost","deceased"]);
 const T0='2026-01-01T00:00:00.000Z';
@@ -189,7 +191,7 @@ test('a photo on a proposed change is only saved after approval, and must be the
 });
 test('financial corrections require approval; unsupported operations (delete, merge, ownership) cannot be expressed',async()=>{
  const {db,state,domain}=setup();
- db.exec(`INSERT INTO transactions(id,owner_id,transaction_type,direction,date,amount,description,created_at) VALUES('t1','A','cash_donation','inflow','${T0}',100,'Donation','${T0}')`);
+ db.exec(`INSERT INTO transactions(id,owner_id,transaction_type,direction,date,amount_minor,description,created_at) VALUES('t1','A','cash_donation','inflow','${T0}',10000,'Donation','${T0}')`);
  const before=domain();state.raw=planWith({transactions:[txn({amount:50})]});
  const r=await api.PATCH(request({id:'t1',recordType:'transaction',version:db.prepare("SELECT version v FROM transactions").get().v,correction:'it was 50',requestKey:'f1'},'PATCH'));
  assert.equal((await r.json()).outcome,'needs_confirmation');assert.equal(domain(),before);
@@ -202,4 +204,18 @@ test('non-consequential, unambiguous updates still apply immediately',async()=>{
  const {db,state}=setup();state.raw=planWith({cats:[catDraft({ref:'milo',existingId:'milo',currentStatus:'recovering'})],events:[eventDraft({catRef:'milo',eventType:'vet_visit'})],transactions:[txn({amount:45.5,transactionType:'operating_expense',direction:'outflow'})]});
  const out=await (await post({input:'Milo went to the vet, I spent $45.50',requestKey:'ok'})).json();assert.equal(out.outcome,'committed');
  assert.equal(db.prepare("SELECT current_status s FROM cats WHERE id='milo'").get().s,'recovering');assert.equal(db.prepare('SELECT count(*) n FROM proposed_actions').get().n,0);db.close();
+});
+
+test('assistant answers use the shared report definitions: unknown surgery history is never "needs surgery"',async()=>{
+ const {db,state}=setup();
+ db.exec(`INSERT INTO events(id,owner_id,cat_id,event_type,occurred_at,created_at) VALUES('s1','A','luna','surgery_needed','2026-02-01T00:00:00.000Z','${T0}'),('s2','A','milo','vet_visit','2026-02-01T00:00:00.000Z','${T0}')`);
+ db.exec(`INSERT INTO transactions(id,owner_id,transaction_type,direction,date,amount_minor,currency,description,estimated_value_minor,created_at) VALUES('m1','A','cash_donation','inflow','2026-03-01',10050,'USD','gift',NULL,'${T0}'),('m2','A','in_kind_donation','inflow','2026-03-02',NULL,'USD','food',2400,'${T0}'),('m3','A','supply_purchase','outflow','2026-03-03',333,'USD','litter',NULL,'${T0}')`);
+ const ask=async(kind,year=null)=>{state.raw={...base(),intent:'query',query:{...query,kind,year}};return (await (await post({input:`question ${kind}`,mode:'ask',requestKey:`q-${kind}`})).json()).message};
+ const surgery=await ask('cats_needing_surgery');
+ assert.match(surgery,/^1 cat has a confirmed need for surgery: Luna\./);
+ assert.match(surgery,/1 more has unknown surgery history, which is not the same as needing surgery/);
+ assert.doesNotMatch(surgery,/Milo/,'Milo has no surgery on file but that does not mean he needs one');
+ assert.match(await ask('income_expenses',2026),/2026: Cash in \$100\.50, cash out \$3\.33, net \$97\.17\. In-kind: 1 donation, estimated \$24\.00 \(not counted as income\)/);
+ assert.match(await ask('impact',2026),/2026: 1 cats assisted, 0 captured, 0 sterilized, 0 vaccinated, 0 adopted, 0 returned to colony, 0 colonies served, 0 veterinary procedures/);
+ db.close();
 });

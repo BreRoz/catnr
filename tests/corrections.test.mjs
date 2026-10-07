@@ -1,10 +1,12 @@
+import { migrations as allMigrations } from './helpers/migrations.mjs';
+import { linkMoney } from './helpers/money.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const migrations=allMigrations;
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
 const correctionSource=await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8');
@@ -13,9 +15,9 @@ const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toS
 const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
 const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
-const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(linkMoney(validationSource),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
 const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__correctionsEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const js=ts.transpileModule(linkMoney(source).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__correctionsEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const env={};globalThis.__correctionsEnv=env;
 const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'adopted',currentLocation:null,microchipNumber:null});
@@ -42,7 +44,7 @@ function seed(db,status='adopted'){
  db.exec(`INSERT INTO cats(id,owner_id,name,current_status,created_at,updated_at) VALUES('milo','A','Milo','${status}','${T0}','${T0}');
  INSERT INTO events(id,owner_id,cat_id,event_type,occurred_at,notes,created_at) VALUES('e1','A','milo','adoption','${T0}','Adopted by Sam','${T0}');
  INSERT INTO photos(id,owner_id,cat_id,event_id,storage_location,taken_at) VALUES('p1','A','milo','e1','${photo}','${T0}');
- INSERT INTO transactions(id,owner_id,transaction_type,direction,date,amount,description,related_event_id,related_cat_id,created_at) VALUES('t1','A','cash_donation','inflow','${T0}',100,'Adoption fee','e1','milo','${T0}')`);
+ INSERT INTO transactions(id,owner_id,transaction_type,direction,date,amount_minor,description,related_event_id,related_cat_id,created_at) VALUES('t1','A','cash_donation','inflow','${T0}',10000,'Adoption fee','e1','milo','${T0}')`);
 }
 const ver=(db,table,id)=>db.prepare(`SELECT version FROM ${table} WHERE id=?`).get(id).version;
 const correct=(db,id,key,extra={})=>api.PATCH(request({id,recordType:'event',version:ver(db,'events',id),correction:`fix ${key}`,requestKey:key,...extra},'PATCH'));
@@ -158,9 +160,9 @@ test('financial correction supersedes, changes totals, and undo restores them',a
  const r=await api.PATCH(request({id:'t1',recordType:'transaction',version:ver(db,'transactions','t1'),correction:'it was $50',requestKey:'m1'},'PATCH'));assert.equal(r.status,200);const proposed=await r.json();
  assert.equal(proposed.outcome,'needs_confirmation');assert.equal(db.prepare("SELECT count(*) n FROM transactions").get().n,1);
  const confirmed=await api.POST(request({confirmProposalId:proposed.proposalId,requestKey:'m1c'}));assert.equal(confirmed.status,200);const out=await confirmed.json();assert.equal(out.outcome,'committed');
- assert.equal((await (await get('')).json()).stats.cashIn,50);assert.equal(db.prepare("SELECT amount FROM transactions WHERE id='t1'").get().amount,100);assert.equal(db.prepare('SELECT count(*) n FROM active_transactions').get().n,1);
+ assert.deepEqual((await (await get('')).json()).stats.cashIn,[{currency:'USD',minor:5000}]);assert.equal(db.prepare("SELECT amount_minor FROM transactions WHERE id='t1'").get().amount_minor,10000);assert.equal(db.prepare('SELECT count(*) n FROM active_transactions').get().n,1);
  assert.equal(db.prepare("SELECT date FROM active_transactions").get().date,T0);
- assert.equal((await undo(out.correctionId,'um')).status,200);assert.equal((await (await get('')).json()).stats.cashIn,100);
+ assert.equal((await undo(out.correctionId,'um')).status,200);assert.deepEqual((await (await get('')).json()).stats.cashIn,[{currency:'USD',minor:10000}]);
  db.close();
 });
 

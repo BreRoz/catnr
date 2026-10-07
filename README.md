@@ -23,9 +23,10 @@ This starter does not use `wrangler.jsonc`.
 - edit site code under `app/`
 - `.openai/hosting.json` declares optional Sites D1 and R2 bindings
 - `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
+- `drizzle/*.sql` are the only definition of the database; `db/schema.ts` is a typed description checked against them (see `docs/STAGE-6-SCHEMA.md`)
+- manual record management (no AI) lives in `app/manage/` (server), `app/api/manage/` (routes) and `app/records/` (UI); see `docs/STAGE-7-RECORDS.md`
+- every reported number is defined in one place, `app/reports/` (what it counts, what it does not, and the SQL); see `docs/STAGE-8-REPORTS.md`
 - `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
 
 ## Workspace Auth Headers
 
@@ -92,7 +93,11 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
 - `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+- `npm run db:migrate:local`: apply pending migrations to the local development database
+- `npm run db:reset:local`: bring a local database that predates migrations in line (backs it up first)
+- `npm run db:migrate`: apply pending migrations to the production D1 database (run before `npm run deploy`)
+- `npm run test:d1`: run the migrations on the real D1 engine (Miniflare) and check upgrade, constraints and rollback
+- Schema changes are hand-written migrations in `drizzle/` (plus a `drizzle/meta/_journal.json` entry); do not use `drizzle-kit generate`
 
 ## Learn More
 

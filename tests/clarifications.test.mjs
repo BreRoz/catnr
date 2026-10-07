@@ -1,3 +1,5 @@
+import { migrations as allMigrations } from './helpers/migrations.mjs';
+import { linkMoney } from './helpers/money.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -7,14 +9,13 @@ import ts from 'typescript';
 const compile=src=>ts.transpileModule(src,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const url=js=>`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`;
 const read=n=>readFile(new URL(`../app/api/assistant/${n}.ts`,import.meta.url),'utf8');
-const names=['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'];
-const migrations=await Promise.all(names.map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
-const validationURL=url(compile(await read('validation')));
+const migrations=allMigrations;
+const validationURL=url(compile(linkMoney(await read('validation'))));
 const correctionURL=url(compile(await read('corrections')));
 const helperURL=url(compile(await read('reliability')));
 const clarURL=url(compile(await read('clarifications')));
 const env={};globalThis.__clarEnv=env;
-const api=await import(url(compile((await read('route')).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__clarEnv;'))));
+const api=await import(url(compile(linkMoney(await read('route')).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__clarEnv;'))));
 
 const T0='2026-01-01T00:00:00.000Z';
 const PNG='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';

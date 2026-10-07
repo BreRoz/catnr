@@ -6,15 +6,16 @@ type D1 = D1Database;
 export class PlanRejected extends Error { constructor(message:string){super(message);this.name="PlanRejected"} }
 
 export const INTENTS=["record","query","clarify","social"] as const;
-export const EVENT_TYPES=["first_seen","captured","intake","transport","vet_visit","spay","neuter","vaccination","testing","medication","illness","injury","observation","foster","adoption_interest","application","meet_and_greet","adoption","returned_to_colony","lost","deceased","other"] as const;
+export const EVENT_TYPES=["first_seen","captured","intake","transport","vet_visit","spay","neuter","vaccination","testing","medication","surgery_needed","previously_sterilized","illness","injury","observation","foster","adoption_interest","application","meet_and_greet","adoption","returned_to_colony","lost","deceased","other"] as const;
 export const TRANSACTION_TYPES=["cash_donation","cash_inflow","cash_outflow","in_kind_donation","fundraiser_income","merchandise_income","operating_expense","supply_purchase","other"] as const;
 export const QUERY_KINDS=["none","cats_by_status","cat_history","impact","income_expenses","transactions","cats_by_colony","cats_needing_surgery"] as const;
 export const SEXES=["male","female","unknown"] as const;
 export const AGE_CLASSES=["kitten","juvenile","adult","senior","unknown"] as const;
 export const PERSON_TYPES=["donor","adopter","foster","volunteer","veterinarian","other"] as const;
-export const CURRENCIES=["USD","CAD","EUR","GBP","MXN","AUD"] as const;
-const INFLOW_TYPES=new Set(["cash_donation","cash_inflow","in_kind_donation","fundraiser_income","merchandise_income"]);
-const OUTFLOW_TYPES=new Set(["cash_outflow","operating_expense","supply_purchase"]);
+export { CURRENCIES } from "../../money";
+import { CURRENCIES, DEFAULT_CURRENCY, MoneyError, toMinorUnits } from "../../money";
+export const INFLOW_TYPES=new Set(["cash_donation","cash_inflow","in_kind_donation","fundraiser_income","merchandise_income"]);
+export const OUTFLOW_TYPES=new Set(["cash_outflow","operating_expense","supply_purchase"]);
 const MEDICAL=new Set(["vet_visit","spay","neuter","vaccination","testing","medication","illness","injury"]);
 const CONSEQUENTIAL_EVENTS=new Set(["deceased","adoption","lost"]);
 const MAX_ITEMS=25, MAX_TEXT=2000, MAX_MONEY=1_000_000, MAX_QTY=100_000;
@@ -74,6 +75,12 @@ function money(v:unknown,where:string,max:number):number|null{
  if(Math.abs(v*100-Math.round(v*100))>1e-6)throw new PlanRejected(`${where} has more than two decimal places`);
  return v;
 }
+// Money must convert to exact integer minor units for its currency; anything else is rejected, never rounded.
+function moneyAmount(v:unknown,where:string,max:number,currency:string):number|null{
+ const n=money(v,where,max);if(n==null)return null;
+ try{toMinorUnits(n,currency)}catch(e){if(e instanceof MoneyError)throw new PlanRejected(`${where} is not an exact amount in ${currency}: ${e.message}`);throw e}
+ return n;
+}
 
 /** Parse provider text as JSON; anything else is rejected before schema validation. */
 export function parseProviderJson(text:unknown):unknown{
@@ -114,8 +121,9 @@ export function validateProviderPlan(raw:unknown,opts:{statuses:Set<string>;mode
  const transactions=(p.transactions as unknown[]).map((x,i)=>{const w=`transactions[${i}]`,o=exact(x,KEYS.transaction,w);
   const type=oneOf(o.transactionType,TRANSACTION_TYPES,`${w}.transactionType`,true)!,direction=oneOf(o.direction,["inflow","outflow"] as const,`${w}.direction`,true)!;
   if(INFLOW_TYPES.has(type)&&direction!=="inflow"||OUTFLOW_TYPES.has(type)&&direction!=="outflow")throw new PlanRejected(`${w}.direction contradicts its type`);
-  const amount=money(o.amount,`${w}.amount`,MAX_MONEY),estimatedValue=money(o.estimatedValue,`${w}.estimatedValue`,MAX_MONEY),quantity=money(o.quantity,`${w}.quantity`,MAX_QTY);
-  const currency=o.currency==null?null:oneOf(o.currency,CURRENCIES,`${w}.currency`);
+  // Currency is always explicit once validated: Ari's MVP default is USD when none is stated.
+  const currency=o.currency==null?DEFAULT_CURRENCY:oneOf(o.currency,CURRENCIES,`${w}.currency`)!;
+  const amount=moneyAmount(o.amount,`${w}.amount`,MAX_MONEY,currency),estimatedValue=moneyAmount(o.estimatedValue,`${w}.estimatedValue`,MAX_MONEY,currency),quantity=money(o.quantity,`${w}.quantity`,MAX_QTY);
   if(amount==null&&type!=="in_kind_donation"&&type!=="other")throw new PlanRejected(`${w}.amount is required for a money transaction`);
   if(amount!=null&&amount<=0)throw new PlanRejected(`${w}.amount must be greater than zero`);
   return{transactionType:type,direction,date:validDate(o.date,`${w}.date`,nowMs),amount,currency,personName:str(o.personName,`${w}.personName`,{max:200}),category:str(o.category,`${w}.category`,{max:100}),
@@ -147,7 +155,7 @@ export function validateProviderPlan(raw:unknown,opts:{statuses:Set<string>;mode
 export async function checkReferences(db:D1,owner:string,plan:AgentPlan){
  const declared=new Set(plan.cats.filter(c=>!c.existingId).map(c=>c.ref));
  const aliases=new Map(plan.cats.filter(c=>c.existingId).map(c=>[c.ref,c.existingId!]));
- const owned=async(table:"cats"|"people",rid:string)=>!!await db.prepare(`SELECT id FROM ${table} WHERE id=? AND owner_id=?`).bind(rid,owner).first();
+ const owned=async(table:"cats"|"people",rid:string)=>!!await db.prepare(`SELECT id FROM ${table} WHERE id=? AND owner_id=? AND archived_at IS NULL`).bind(rid,owner).first();
  for(const p of plan.people)if(p.existingId&&!await owned("people",p.existingId))throw new PlanRejected("The plan refers to a person who doesn't exist");
  const ids=[...plan.cats.map(c=>c.existingId),...plan.events.map(e=>e.catRef),...plan.transactions.map(t=>t.relatedCatRef),plan.query.catId];
  for(const ref of ids){if(!ref||declared.has(ref))continue;if(!await owned("cats",aliases.get(ref)||ref))throw new PlanRejected("The plan refers to a cat that doesn't exist")}

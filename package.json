@@ -11,9 +11,11 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate",
     "deploy": "npm run build && wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply catnr-db --remote"
+    "db:migrate": "wrangler d1 migrations apply catnr-db --remote",
+    "db:migrate:local": "wrangler d1 migrations apply catnr-db --local",
+    "db:reset:local": "node scripts/reset-local-db.mjs",
+    "test:d1": "node tests/d1-runtime-check.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

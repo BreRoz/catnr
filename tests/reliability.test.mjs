@@ -1,10 +1,12 @@
+import { migrations as allMigrations } from './helpers/migrations.mjs';
+import { linkMoney } from './helpers/money.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const migrations=allMigrations;
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
 const correctionSource=await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8');
@@ -13,9 +15,9 @@ const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toS
 const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
 const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
-const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(linkMoney(validationSource),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
 const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const js=ts.transpileModule(linkMoney(source).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const env={};globalThis.__reliabilityEnv=env;
 const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'foster',currentLocation:null,microchipNumber:null});
@@ -90,4 +92,51 @@ test('partial failure after changing an existing cat restores its previous statu
  const {db,state,counts}=setup();db.exec("INSERT INTO cats(id,owner_id,name,current_status,created_at,updated_at) VALUES('milo','A','Milo','observed','now','now')");state.plan.cats=[cat('milo')];state.plan.events[0].catRef='milo';state.plan.transactions[0].relatedCatRef='milo';
  const before=counts(),revision=db.prepare('SELECT version FROM rescue_revisions').get().version;state.fail=q=>q.startsWith('INSERT INTO transactions');
  assert.equal((await api.POST(request({input:'adopt'}))).status,503);assert.deepEqual(counts(),before);const c=db.prepare("SELECT * FROM cats WHERE id='milo'").get();assert.equal(c.current_status,'observed');assert.equal(c.version,0);assert.equal(db.prepare('SELECT version FROM rescue_revisions').get().version,revision);db.close();
+});
+
+test('money is stored as exact minor units with an explicit currency, never rounded, and totals stay per currency',async()=>{
+ const get=()=>api.GET(new Request('https://rescue.test/api/assistant',{headers:{'x-catnr-user-id':'A','x-catnr-user-email':'A@test'}}));
+ const {db,state,counts}=setup();
+ const tx=(amount,currency,extra={})=>({...plan().transactions[0],relatedCatRef:null,personName:null,amount,currency,...extra});
+ const record=async(transactions,key)=>{state.plan={...plan(),cats:[],people:[],events:[],transactions};return api.POST(request({input:'money',requestKey:key}))};
+ assert.equal((await record([tx(19.99,'USD'),tx(129.5,'USD'),tx(0.1,'USD',{direction:'outflow',transactionType:'supply_purchase'}),tx(5,'CAD'),tx(null,null,{transactionType:'in_kind_donation',item:'Friskies',quantity:2,unit:'bags',estimatedValue:12.34})],'ok')).status,200);
+ const rows=db.prepare('SELECT amount_minor a,estimated_value_minor v,currency c FROM transactions ORDER BY rowid').all().map(r=>({...r}));
+ assert.deepEqual(rows,[{a:1999,v:null,c:'USD'},{a:12950,v:null,c:'USD'},{a:10,v:null,c:'USD'},{a:500,v:null,c:'CAD'},{a:null,v:1234,c:'USD'}]);
+ const body=await (await get()).json();
+ assert.deepEqual(body.stats.cashIn,[{currency:'CAD',minor:500},{currency:'USD',minor:14949}],'19.99 + 129.50 is exactly 149.49');
+ assert.deepEqual(body.stats.cashOut,[{currency:'USD',minor:10}]);
+ assert.equal(body.stats.cashInText,'CA$5.00 + $149.49');assert.equal(body.stats.cashOutText,'$0.10');
+ assert.ok(body.memories.some(m=>m.detail.startsWith('$19.99 · ')),'memory shows exact dollars and cents');
+ // nothing that cannot be stored exactly is accepted, and a rejection writes nothing
+ const before=counts();
+ for(const [bad,why] of [[10.005,'half a cent'],[0.1+0.2,'float noise'],[1e-7,'exponent form'],[-1,'negative'],[2_000_000,'too large']]){
+  assert.equal((await record([tx(bad,'USD')],`bad-${why}`)).status,422,why);
+ }
+ assert.equal((await record([tx(5,'JPY')],'jpy')).status,422,'unsupported currency');
+ assert.equal((await record([tx(1,'USD',{estimatedValue:0.001})],'est')).status,422,'estimated value is held to the same rule');
+ assert.deepEqual(counts(),before);
+ db.close();
+});
+
+test('Stage 7: the assistant never writes to archived or merged-away records',async()=>{
+ const {db,state,counts}=setup();
+ // "Jefferson" was merged into "Jefferson Ave"; "Sarah" into "Sarah Yunker".
+ db.exec(`INSERT INTO colonies(id,owner_id,name,created_at,updated_at,archived_at) VALUES('col-old','A','Jefferson','t','t','t');
+  INSERT INTO colonies(id,owner_id,name,created_at,updated_at) VALUES('col-new','A','Jefferson Ave','t','t');
+  INSERT INTO people(id,owner_id,name,created_at,updated_at,archived_at) VALUES('p-old','A','Sarah','t','t','t');
+  INSERT INTO people(id,owner_id,name,created_at,updated_at) VALUES('p-new','A','Sarah Yunker','t','t');
+  INSERT INTO merges(id,owner_id,record_type,survivor_id,merged_id,actor_id,created_at) VALUES('m1','A','colony','col-new','col-old','A','t'),('m2','A','person','p-new','p-old','A','t');`);
+ const r=await api.POST(request({input:'Milo from Jefferson, Sarah donated',requestKey:'fold'}));assert.equal(r.status,200,JSON.stringify(await r.clone().json()));
+ assert.equal(db.prepare("SELECT origin_colony_id FROM cats").get().origin_colony_id,'col-new','new work goes to the surviving colony');
+ assert.equal(db.prepare('SELECT count(*) n FROM colonies').get().n,2,'no duplicate colony was recreated');
+ assert.equal(db.prepare('SELECT count(*) n FROM people').get().n,2,'no duplicate person was recreated');
+ assert.equal(db.prepare('SELECT person_id FROM events').get().person_id,'p-new');
+ assert.equal(db.prepare('SELECT person_id FROM transactions').get().person_id,'p-new');
+ // A reference to an archived cat is rejected before anything is written.
+ db.exec("INSERT INTO cats(id,owner_id,name,current_status,created_at,updated_at,archived_at) VALUES('old-cat','A','Gone','observed','t','t','t')");
+ const before=counts();state.plan=plan();state.plan.cats=[cat('old-cat')];state.plan.events[0].catRef='old-cat';state.plan.transactions[0].relatedCatRef='old-cat';
+ const rejected=await api.POST(request({input:'Gone was seen again',requestKey:'archived'}));
+ assert.equal(rejected.status,422);assert.equal(db.prepare("SELECT current_status FROM cats WHERE id='old-cat'").get().current_status,'observed');
+ assert.deepEqual({...counts(),ai_inputs:0,write_requests:0},{...before,ai_inputs:0,write_requests:0});
+ db.close();
 });

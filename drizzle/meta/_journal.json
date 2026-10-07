@@ -50,6 +50,20 @@
       "when": 1791331200000,
       "tag": "0006_pending_clarifications",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791334800000,
+      "tag": "0007_standard_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791338400000,
+      "tag": "0008_everyday_records",
+      "breakpoints": true
     }
   ]
 }

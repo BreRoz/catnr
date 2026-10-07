@@ -25,8 +25,8 @@ test("supports the MVP record types and audit links", () => {
   for (const table of ["cats", "colonies", "events", "photos", "people", "transactions", "ai_inputs"]) {
     assert.match(schema, new RegExp(`sqliteTable\\(\"${table}\"`));
   }
-  assert.match(schema, /recordsCreated:text\("records_created"\)/);
-  assert.match(schema, /ownerId:text\("owner_id"\)/);
+  assert.match(schema, /recordsCreated:\s*text\("records_created"\)/);
+  assert.match(schema, /ownerId:\s*text\("owner_id"\)/);
   assert.match(route, /source_input_id/);
 });
 
