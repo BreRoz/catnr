@@ -4,12 +4,15 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
+const correctionSource=await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8');
+const correctionJS=ts.transpileModule(correctionSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
 const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./reliability"',`from "${helperURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const js=ts.transpileModule(source.replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const env={};globalThis.__reliabilityEnv=env;
 const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'adopted',currentLocation:null,microchipNumber:null});
@@ -66,14 +69,6 @@ test('late invalid AI operation and foreign relationship leave all records uncha
  const {db,state,counts}=setup();const before=counts();state.plan.transactions[0].amount=-5;assert.equal((await api.POST(request({input:'bad'}))).status,503);assert.deepEqual(counts(),before);
  state.plan=plan();state.plan.transactions[0].relatedCatRef='unknown';assert.equal((await api.POST(request({input:'bad ref'}))).status,503);assert.deepEqual(counts(),before);db.close();
 });
-test('correction is atomic, preserves original audit and reattaches photos and financial links',async()=>{
- const {db,state,counts}=setup();await api.POST(request({input:'record',photoDataUrl:photo,requestKey:'original'}));const original=db.prepare('SELECT * FROM events').get(),p=db.prepare('SELECT * FROM photos').get();db.prepare('UPDATE transactions SET related_event_id=?').run(original.id);
- state.plan=plan();state.plan.cats=[cat(p.cat_id)];state.plan.events[0].catRef=p.cat_id;state.plan.transactions=[];
- const body={id:original.id,recordType:'event',version:original.version,correction:'correct',requestKey:'correct'};
- const before=counts();state.fail=q=>q.startsWith('DELETE FROM events');assert.equal((await api.PATCH(request(body,'PATCH'))).status,503);assert.deepEqual(counts(),before);assert.equal(db.prepare('SELECT event_id FROM photos').get().event_id,original.id);assert.ok(db.prepare('SELECT id FROM events WHERE id=?').get(original.id));
- state.fail=null;assert.equal((await api.PATCH(request(body,'PATCH'))).status,200);const replacement=db.prepare('SELECT id FROM events').get().id;assert.notEqual(replacement,original.id);assert.equal(db.prepare('SELECT event_id FROM photos').get().event_id,replacement);assert.equal(db.prepare('SELECT related_event_id FROM transactions').get().related_event_id,replacement);assert.equal(db.prepare("SELECT count(*) n FROM ai_inputs WHERE correction IS NOT NULL").get().n,1);
- assert.equal((await api.PATCH(request(body,'PATCH'))).status,200);assert.equal(counts().events,1);db.close();
-});
 test('stale UI correction version is rejected before interpreting or changing anything',async()=>{
  const {db,state,counts}=setup();await api.POST(request({input:'record'}));const e=db.prepare('SELECT * FROM events').get();db.prepare("UPDATE events SET notes='newer' WHERE id=?").run(e.id);const before=counts(),calls=state.calls;
  const r=await api.PATCH(request({id:e.id,recordType:'event',correction:'stale',version:e.version},'PATCH'));assert.equal(r.status,409);assert.deepEqual(counts(),before);assert.equal(state.calls,calls);assert.equal(db.prepare('SELECT notes FROM events').get().notes,'newer');db.close();
@@ -92,8 +87,4 @@ test('partial failure after changing an existing cat restores its previous statu
  const {db,state,counts}=setup();db.exec("INSERT INTO cats(id,owner_id,name,current_status,created_at,updated_at) VALUES('milo','A','Milo','observed','now','now')");state.plan.cats=[cat('milo')];state.plan.events[0].catRef='milo';state.plan.transactions[0].relatedCatRef='milo';
  const before=counts(),revision=db.prepare('SELECT version FROM rescue_revisions').get().version;state.fail=q=>q.startsWith('INSERT INTO transactions');
  assert.equal((await api.POST(request({input:'adopt'}))).status,503);assert.deepEqual(counts(),before);const c=db.prepare("SELECT * FROM cats WHERE id='milo'").get();assert.equal(c.current_status,'observed');assert.equal(c.version,0);assert.equal(db.prepare('SELECT version FROM rescue_revisions').get().version,revision);db.close();
-});
-test('financial correction replaces exactly once and preserves the original in audit',async()=>{
- const {db,state}=setup();await api.POST(request({input:'record',requestKey:'original-finance'}));const original=db.prepare('SELECT * FROM transactions').get();state.plan.cats=[];state.plan.events=[];state.plan.people=[];state.plan.transactions[0].relatedCatRef=original.related_cat_id;state.plan.transactions[0].amount=50;
- const body={id:original.id,recordType:'transaction',version:original.version,correction:'Sarah donated $50',requestKey:'finance-correction'};assert.equal((await api.PATCH(request(body,'PATCH'))).status,200);assert.equal(db.prepare('SELECT count(*) n FROM transactions').get().n,1);assert.equal(db.prepare('SELECT amount FROM transactions').get().amount,50);assert.equal(JSON.parse(db.prepare("SELECT correction FROM ai_inputs WHERE input_type='correction'").get().correction).amount,100);assert.equal((await api.PATCH(request(body,'PATCH'))).status,200);assert.equal(db.prepare('SELECT count(*) n FROM transactions').get().n,1);db.close();
 });

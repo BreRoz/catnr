@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 const mf=new Miniflare({modules:true,script:'export default { fetch(){ return new Response("ok") } }',d1Databases:['DB'],compatibilityDate:'2026-05-22'});
 try{
  const db=await mf.getD1Database('DB');
- for(const name of ['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording']){
+ for(const name of ['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections']){
   const sql=await readFile(new URL(`../drizzle/${name}.sql`,import.meta.url),'utf8');
   for(const statement of sql.split('--> statement-breakpoint').filter(x=>x.trim()))await db.prepare(statement).run();
  }
