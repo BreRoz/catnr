@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const sql = await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const sql = await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const correctionJS=ts.transpileModule(await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
@@ -13,7 +13,8 @@ const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.Scrip
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
 const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
 const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const db=new DatabaseSync(':memory:');db.exec(sql[0]);db.exec(sql[1]);
 db.exec("INSERT INTO cats(id,name,created_at,updated_at) VALUES('legacy','Legacy','now','now'); INSERT INTO people(id,owner_id,name,created_at) VALUES('local','local-owner','Legacy person','now')");
 db.exec(sql[2]);db.exec(sql[3]);db.exec(sql[4]);

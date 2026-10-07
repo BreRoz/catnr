@@ -7,13 +7,14 @@ import ts from 'typescript';
 const compile=src=>ts.transpileModule(src,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const url=js=>`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`;
 const read=n=>readFile(new URL(`../app/api/assistant/${n}.ts`,import.meta.url),'utf8');
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
 const validationURL=url(compile(await read('validation')));
 const v=await import(validationURL);
 const correctionURL=url(compile(await read('corrections')));
 const helperURL=url(compile(await read('reliability')));
 const env={};globalThis.__validationEnv=env;
-const api=await import(url(compile((await read('route')).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__validationEnv;'))));
+const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const api=await import(url(compile((await read('route')).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__validationEnv;'))));
 
 const statuses=new Set(["observed","captured","awaiting vet","recovering","foster","available for adoption","adoption pending","adopted","returned to colony","lost","deceased"]);
 const T0='2026-01-01T00:00:00.000Z';

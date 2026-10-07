@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals','0006_pending_clarifications'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
 const correctionSource=await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8');
@@ -14,7 +14,8 @@ const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.Scrip
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
 const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
 const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const env={};globalThis.__reliabilityEnv=env;
 const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'foster',currentLocation:null,microchipNumber:null});

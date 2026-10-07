@@ -43,6 +43,13 @@
       "when": 1791327600000,
       "tag": "0005_validated_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791331200000,
+      "tag": "0006_pending_clarifications",
+      "breakpoints": true
     }
   ]
 }
