@@ -1,15 +1,24 @@
 # Stage 1 ownership
 
-All rescue API methods require both Sites authenticated identity headers. The page requires sign-in. Identity comes only from Sites dispatch, never JSON or AI plans. Dispatch must strip/overwrite incoming identity headers; the worker origin must not be publicly reachable outside that gateway. Local development headers simulate this trusted boundary and are not an authentication service. Do not expose a development server to untrusted clients.
+## Authentication
+The worker (`worker/index.ts`) is the only place identity is established. It strips any incoming `x-catnr-user-id` / `x-catnr-user-email` headers, verifies the Cloudflare Access JWT (`cf-access-jwt-assertion`, signature, issuer, audience `ACCESS_AUD`, expiry; `worker/access.ts`) and sets the identity headers itself. Missing/invalid token => 401. If Access is not configured on a non-localhost host, the worker fails closed with 503. Only on `localhost`/`127.0.0.1`/`[::1]` does it substitute `dev@localhost`. The API (`ownerFrom`) rejects requests lacking identity or carrying reserved owners (`local-owner`, `legacy:*`). Owner IDs are never read from JSON bodies or AI output.
 
-D1 is accessible only through the worker binding and administrator tooling. SQLite/D1 has no per-request row-level security identity: server queries scope reads/writes by authenticated owner. Migration 0002 adds database triggers rejecting missing/reserved owners, immutable ownership, and foreign relationships unless parent and child share an owner (including photo/event and AI source links). No schema changes occur in requests. Existing malformed relationships are not exposed by joined reads; attempts to update them fail until an administrator repairs them.
+## Authorization
+- Every read/write query is scoped `owner_id = <authenticated user>`, including joins, photo reads, corrections, and AI context (the AI only sees the caller's records).
+- D1 has no per-request row-level security identity, so migration 0002 adds triggers: owner required and not reserved, `owner_id` immutable, and every foreign link (cat->colony, event->cat/person/ai_input, photo->cat/event, transaction->person/cat/event/colony/ai_input) must have the same owner as the child. These hold even for buggy application code.
+- Photos live in `photos.storage_location` (data URL in D1) and are served only via `GET /api/assistant?photoId=` scoped by owner, `cache-control: private, no-store`. Legacy R2 keys (`cats/<owner>/...`) are served only if an R2 `PHOTOS` binding exists and the key matches the caller's prefix; otherwise 404.
 
-## Deployment and legacy recovery
+## Legacy `local-owner` data
+Migration 0002 retains all rows and moves NULL, empty and `local-owner` ownership to `legacy:quarantine`. No authenticated identity can equal that value, no request can claim it, and triggers reject it on insert/update. Legacy rows are therefore invisible to everyone until an administrator reassigns them. They are never assigned to whoever requests them first.
 
-1. Pause writes and back up D1 and the private R2 bucket. Inventory tables and photo keys before migration. Apply 0000 and 0001 if not already applied, then 0002 using the deployment's D1 migration tooling. Databases previously bootstrapped by request-time DDL must be reconciled against 0000/0001 before marking those migrations applied; do not blindly replay duplicate ALTER statements.
-2. Migration 0002 retains all rows. NULL, empty, and `local-owner` ownership becomes `legacy:quarantine`. No authenticated identity can use that namespace. No request can claim it. Photos with legacy keys also fail the owner-prefix check.
-3. An administrator must determine ownership from independently verified provenance. Shared anonymous data cannot be attributed automatically. Leave unresolved rows quarantined. Obtain explicit owner confirmation and create a reviewed manifest of each table/ID, old owner, verified target Sites user ID, evidence, and connected records. Review existing cross-owner links as well. Each connected graph must have one verified owner or be explicitly repaired without losing historical evidence.
-4. During a separate maintenance window, copy approved R2 objects to `cats/<URL-encoded verified user ID>/<new UUID>.jpg` in the private bucket and verify their contents. Back up again. In an administrator-only transactional SQL script, temporarily drop the ownership triggers from 0002, update only manifest-listed rows and approved storage paths with old-owner guards, validate all non-null owners and every foreign relationship, then recreate the triggers before commit. Record the manifest and migration outcome in restricted administrative records. Do not add a web claiming or transfer endpoint. Roll back on any mismatch; retain original objects until restoration is verified.
-5. Keep R2 private: disable public bucket/custom-domain access. Serve objects only through the authenticated photo endpoint. Run the Stage 1 tests and verify the deployed gateway rejects forged identity headers before reopening writes.
+Recovery (administrator only, no web endpoint):
+1. Back up D1. Inventory quarantined rows per table.
+2. Establish ownership from independent evidence (e.g. Ari confirms her rows are hers); write a manifest: table, id, target Access email, evidence, connected records. Each connected graph must have a single owner.
+3. In one transactional script: drop the 0002 `*_owner_immutable` and `*_ownership_*` triggers, `UPDATE ... SET owner_id=<email> WHERE id IN (manifest) AND owner_id='legacy:quarantine'`, verify no cross-owner links remain, recreate the triggers, commit. Roll back on any mismatch.
+4. Rows not in the manifest stay quarantined.
 
-No production data or hosting configuration was changed by this implementation. Deployment requires the migration and gateway/private-storage checks above. Ownership triggers enforce relationships and immutability, not a database administrator's privileges. Broader AI operation atomicity and correction-history redesign remain outside Stage 1.
+## Tests
+`tests/ownership.test.mjs` (anonymous/reserved identity rejected, cross-user reads, photos, corrections denied, body owner spoofing ignored, DB triggers reject reassignment and cross-owner links, AI cannot attach to another user's cat, legacy remains quarantined) and `tests/access.test.mjs` (JWT validation). Run with `npm test`.
+
+## Limits
+Triggers do not constrain a database administrator. Ownership is per single user; sharing between volunteers is out of scope. The Access-bypass on localhost is for development only.
