@@ -1,4 +1,3 @@
-import type { AgentPlan } from "./route";
 type D1 = D1Database;
 const now=()=>new Date().toISOString();
 
@@ -29,13 +28,6 @@ export async function receipt(db:D1,owner:string,key:string,hash:string){
  return Response.json({...JSON.parse(row.response),replayed:true});
 }
 export async function revision(db:D1,owner:string){return Number((await db.prepare("SELECT version FROM rescue_revisions WHERE owner_id=?").bind(owner).first<{version:number}>())?.version||0)}
-export function validatePlan(plan:AgentPlan,statuses:Set<string>){
- if(!plan||!["record","query","clarify","social"].includes(plan.intent)||![plan.cats,plan.events,plan.people,plan.transactions].every(Array.isArray))throw new Error("Invalid plan");
- const refs=new Set<string>(),existing=new Set<string>();
- for(const c of plan.cats){if(!c.ref||refs.has(c.ref)||c.existingId&&existing.has(c.existingId)||c.currentStatus&&!statuses.has(c.currentStatus))throw new Error("Invalid cat plan");refs.add(c.ref);if(c.existingId)existing.add(c.existingId)}
- for(const t of plan.transactions)if(!["inflow","outflow"].includes(t.direction)||!t.description||[t.amount,t.quantity,t.estimatedValue].some(v=>v!=null&&(!Number.isFinite(v)||v<0)))throw new Error("Invalid transaction plan");
- for(const e of plan.events)if(!e.eventType)throw new Error("Invalid event plan");
-}
 export function validatedPhoto(value:unknown):string|null{
  if(value==null)return null;
  if(typeof value!=="string"||value.length>1_800_000)throw new Error("Photo must be smaller than 1.3 MB. Choose a smaller photo.");

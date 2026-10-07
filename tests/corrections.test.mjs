@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const migrations=await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
 const correctionSource=await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8');
@@ -12,7 +12,9 @@ const correctionJS=ts.transpileModule(correctionSource,{compilerOptions:{target:
 const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
 const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__correctionsEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
+const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__correctionsEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const env={};globalThis.__correctionsEnv=env;
 const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'adopted',currentLocation:null,microchipNumber:null});
@@ -152,7 +154,9 @@ test('reload after correction and after undo shows only the current activity wit
 
 test('financial correction supersedes, changes totals, and undo restores them',async()=>{
  const {db,state}=setup();seed(db);state.plan=moneyPlan(50);
- const r=await api.PATCH(request({id:'t1',recordType:'transaction',version:ver(db,'transactions','t1'),correction:'it was $50',requestKey:'m1'},'PATCH'));assert.equal(r.status,200);const out=await r.json();
+ const r=await api.PATCH(request({id:'t1',recordType:'transaction',version:ver(db,'transactions','t1'),correction:'it was $50',requestKey:'m1'},'PATCH'));assert.equal(r.status,200);const proposed=await r.json();
+ assert.equal(proposed.outcome,'needs_confirmation');assert.equal(db.prepare("SELECT count(*) n FROM transactions").get().n,1);
+ const confirmed=await api.POST(request({confirmProposalId:proposed.proposalId,requestKey:'m1c'}));assert.equal(confirmed.status,200);const out=await confirmed.json();assert.equal(out.outcome,'committed');
  assert.equal((await (await get('')).json()).stats.cashIn,50);assert.equal(db.prepare("SELECT amount FROM transactions WHERE id='t1'").get().amount,100);assert.equal(db.prepare('SELECT count(*) n FROM active_transactions').get().n,1);
  assert.equal(db.prepare("SELECT date FROM active_transactions").get().date,T0);
  assert.equal((await undo(out.correctionId,'um')).status,200);assert.equal((await (await get('')).json()).stats.cashIn,100);
@@ -183,7 +187,7 @@ test('unsafe replacement plans are rejected before anything is written',async()=
  };
  for(const [name,plan] of Object.entries(bad)){
   const {db,state}=setup();seed(db);db.exec("INSERT INTO cats(id,owner_id,name,current_status,created_at,updated_at) VALUES('stranger','A','Other','observed','t','t')");state.plan=plan;const before=snapshotAll(db);
-  const r=await correct(db,'e1','c1');assert.equal(r.status,409,name);assert.equal(snapshotAll(db),before,name);db.close();
+  const r=await correct(db,'e1','c1');assert.ok([409,422].includes(r.status),name);assert.equal(snapshotAll(db),before,name);db.close();
  }
  const {db,state}=setup();seed(db);state.plan={...moneyPlan(5),cats:[catDraft('milo','lost')]};const before=snapshotAll(db);
  assert.equal((await api.PATCH(request({id:'t1',recordType:'transaction',version:0,correction:'x',requestKey:'k'},'PATCH'))).status,409);assert.equal(snapshotAll(db),before);db.close();

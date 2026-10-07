@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const route = await readFile(new URL("../app/api/assistant/route.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/reliability.ts", import.meta.url), "utf8");
+const route = await readFile(new URL("../app/api/assistant/route.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/reliability.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/validation.ts", import.meta.url), "utf8");
 const page = await readFile(new URL("../app/rescue-client.tsx", import.meta.url), "utf8");
 const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
 
@@ -18,7 +18,7 @@ test("uses structured AI extraction instead of scripted demo sentences", () => {
 test("requires ambiguity handling and validates identifiers before writes", () => {
   assert.match(route, /intent:"record"\|"query"\|"clarify"/);
   assert.match(route, /Nothing was silently changed/);
-  assert.match(route, /SELECT id FROM cats WHERE id=\? AND owner_id=\?/);
+  assert.match(route, /SELECT id FROM \$\{table\} WHERE id=\? AND owner_id=\?/);
 });
 
 test("supports the MVP record types and audit links", () => {

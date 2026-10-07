@@ -4,14 +4,16 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const sql = await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
+const sql = await Promise.all(['0000_salty_cannonball','0001_slippery_spot','0002_secure_ownership','0003_reliable_recording','0004_versioned_corrections','0005_validated_proposals'].map(n=>readFile(new URL(`../drizzle/${n}.sql`,import.meta.url),'utf8')));
 const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
 const correctionJS=ts.transpileModule(await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
 const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
 const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
-const js=ts.transpileModule(source.replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
+const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(validationSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
+const js=ts.transpileModule(source.replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const db=new DatabaseSync(':memory:');db.exec(sql[0]);db.exec(sql[1]);
 db.exec("INSERT INTO cats(id,name,created_at,updated_at) VALUES('legacy','Legacy','now','now'); INSERT INTO people(id,owner_id,name,created_at) VALUES('local','local-owner','Legacy person','now')");
 db.exec(sql[2]);db.exec(sql[3]);db.exec(sql[4]);
@@ -46,10 +48,10 @@ test('AI cannot attach a transaction to another user cat or update their records
  globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify(plan)}}]});
  try{
   const before=db.prepare('SELECT count(*) n FROM transactions').get().n;
-  assert.equal((await api.POST(req('A','POST','',{input:'attach'}))).status,503);
+  assert.equal((await api.POST(req('A','POST','',{input:'attach'}))).status,422);
   assert.equal(db.prepare('SELECT count(*) n FROM transactions').get().n,before);
   plan={...plan,transactions:[],cats:[{existingId:'b-cat',ref:'b-cat',name:'Stolen'}]};
-  assert.equal((await api.POST(req('A','POST','',{input:'change'}))).status,503);
+  assert.equal((await api.POST(req('A','POST','',{input:'change'}))).status,422);
   assert.equal(db.prepare("SELECT name FROM cats WHERE id='b-cat'").get().name,'Secret cat');
  }finally{globalThis.fetch=originalFetch;delete globalThis.__ownershipEnv.OPENROUTER_API_KEY;}
 });
