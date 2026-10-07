@@ -15,7 +15,7 @@ const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'adopted',currentLocation:null,microchipNumber:null});
 const plan=()=>({intent:'record',message:'Saved.',clarification:null,confidence:1,cats:[cat()],people:[{ref:'donor',existingId:null,name:'Sarah',type:'donor',generalLocation:null,contact:null}],events:[{catRef:'new',eventType:'adoption',occurredAt:null,location:null,personName:'Sarah',notes:'Adopted'}],transactions:[{transactionType:'cash_donation',direction:'inflow',date:null,amount:100,currency:'USD',personName:'Sarah',category:'donation',description:'Donation',item:null,quantity:null,unit:null,estimatedValue:null,relatedCatRef:'new'}],query:{kind:'none'},socialDraft:null});
 const photo='data:image/jpeg;base64,/9j/2Q==';
-const request=(body,method='POST',owner='A')=>new Request('https://rescue.test/api/assistant',{method,headers:{'oai-authenticated-user-id':owner,'oai-authenticated-user-email':`${owner}@test`},body:JSON.stringify(body)});
+const request=(body,method='POST',owner='A')=>new Request('https://rescue.test/api/assistant',{method,headers:{'x-catnr-user-id':owner,'x-catnr-user-email':`${owner}@test`},body:JSON.stringify(body)});
 function setup(){
  const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const sql of migrations)db.exec(sql);
  const state={fail:null,loseResponse:false,failReceipt:false,calls:0,plan:plan(),beforeAI:null,beforeBatch:null};
@@ -31,7 +31,7 @@ test('complete cat + adoption + person + finance + photo success commits audit a
  const {db,state,counts}=setup();const r=await api.POST(request({input:'Milo adopted; Sarah donated $100',photoDataUrl:photo,requestKey:'success'}));assert.equal(r.status,200);const data=await r.json();assert.equal(data.outcome,'committed');assert.equal(data.photoSaved,true);
  assert.deepEqual(counts(),{cats:1,people:1,colonies:1,events:1,transactions:1,photos:1,ai_inputs:1,write_requests:1,write_guards:0});assert.equal(db.prepare('SELECT current_status FROM cats').get().current_status,'adopted');assert.equal(state.calls,1);
  const p=db.prepare('SELECT * FROM photos').get();assert.ok(p.cat_id&&p.event_id);assert.equal(p.storage_location,photo);const audit=db.prepare('SELECT * FROM ai_inputs').get();assert.ok(JSON.parse(audit.records_created).includes(`photo:${p.id}`));
- const image=await api.GET(new Request(`https://rescue.test/api/assistant?photoId=${p.id}`,{headers:{'oai-authenticated-user-id':'A','oai-authenticated-user-email':'a@test'}}));assert.equal(image.status,200);assert.equal(image.headers.get('content-type'),'image/jpeg');assert.deepEqual(new Uint8Array(await image.arrayBuffer()),Uint8Array.from([255,216,255,217]));
+ const image=await api.GET(new Request(`https://rescue.test/api/assistant?photoId=${p.id}`,{headers:{'x-catnr-user-id':'A','x-catnr-user-email':'a@test'}}));assert.equal(image.status,200);assert.equal(image.headers.get('content-type'),'image/jpeg');assert.deepEqual(new Uint8Array(await image.arrayBuffer()),Uint8Array.from([255,216,255,217]));
  db.close();
 });
 test('database failure at every batch statement restores the previous database',async()=>{

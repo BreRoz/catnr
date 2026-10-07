@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "catnr",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "catnr-db",
+      "database_id": "2833176c-ce03-4087-b118-a9879a6ad2fc",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "vars": {
+    // Cloudflare Access settings. Every request must carry a valid Access
+    // token for this team and application, or the worker refuses it.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  }
+}

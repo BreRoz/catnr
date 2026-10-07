@@ -13,7 +13,6 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ari-rescue-assistant.matthew-bahren335256.chatgpt.site"),
   title: "TNR Assistant",
   description: "A careful AI memory for Ari's TNR and cat rescue work.",
   openGraph: {
