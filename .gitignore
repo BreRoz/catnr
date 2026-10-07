@@ -40,3 +40,4 @@ yarn-error.log*
 /work/
 *.tsbuildinfo
 backups/
+.dev.vars

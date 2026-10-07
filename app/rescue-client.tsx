@@ -1,29 +1,141 @@
 "use client";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { load } from "./assistant-client";
+import CaptureSheet, { drafts, type CaptureMode } from "./capture-sheet";
+import CatHistorySheet, { type CatDetail } from "./cat-history-sheet";
 import ClarificationCards, { type PendingClarification } from "./clarification-cards";
+import CorrectionSheet, { formatActivityDate, type Memory } from "./correction-sheet";
+import { confirmDiscard } from "./dialog";
+import type { Draft } from "./drafts";
 import RecordsApp from "./records/records-app";
-type Memory={correctionId?:string|null;version:number;id:string;recordType:"event"|"transaction";kind:string;title:string;detail:string;createdAt:string}; type Cat={id:string;displayName:string;description:string;status:string;origin:string;events:number;photoId?:string|null}; type Reply={message:string;clarification?:string;outcome?:string;proposalId?:string;reasons?:string[]}; type LifetimeStats={catsRecorded:number;catsFoundHomes:number;spayedNeutered:number;vaccinated:number;cashInText:string;cashOutText:string}; type HistoryEntry={id:string;kind:"correction"|"undo";status:"applied"|"undone";reason:string|null;createdAt:string;original:Record<string,string|null>|null;recordType:string}; type CatDetail={cat:Record<string,string|null>&{displayName:string};events:Array<{id:string;event_type:string;occurred_at:string;notes:string|null;location:string|null;person_name:string|null}>;photos:Array<{id:string;taken_at:string;caption:string|null}>};
-const prompts=["The thinner black boy from Jefferson got neutered today, rabies and FVRCP.","Sarah Yunker donated two 12-pound bags of Friskies.","We made $300 selling stickers.","Which cats are waiting for adoption?"];
-export default function Home(){
- const [tab,setTab]=useState("home"),[mode,setMode]=useState<"mic"|"text"|"ask"|"photo"|null>(null),[text,setText]=useState(""),[photo,setPhoto]=useState<{name:string;dataUrl:string}|null>(null),[reply,setReply]=useState<Reply|null>(null),[toast,setToast]=useState(""),[loading,setLoading]=useState(false),[pageLoading,setPageLoading]=useState(false),[listening,setListening]=useState(false),[micError,setMicError]=useState(""),[memories,setMemories]=useState<Memory[]>([]),[cats,setCats]=useState<Cat[]>([]),[detail,setDetail]=useState<CatDetail|null>(null),[editing,setEditing]=useState<Memory|null>(null),[history,setHistory]=useState<HistoryEntry[]>([]),[correction,setCorrection]=useState(""),[stats,setStats]=useState<LifetimeStats>({catsRecorded:0,catsFoundHomes:0,spayedNeutered:0,vaccinated:0,cashInText:"$0.00",cashOutText:"$0.00"}); const [pending,setPending]=useState<PendingClarification[]>([]),[sessionId]=useState(()=>{try{const k="catnr-session";const s=sessionStorage.getItem(k)||crypto.randomUUID();sessionStorage.setItem(k,s);return s}catch{return crypto.randomUUID()}}); const retryRef=useRef<{signature:string;key:string}|null>(null); const requestKey=(payload:unknown)=>{const signature=JSON.stringify(payload);if(retryRef.current?.signature!==signature)retryRef.current={signature,key:crypto.randomUUID()};return retryRef.current.key}; const libraryRef=useRef<HTMLInputElement>(null),cameraRef=useRef<HTMLInputElement>(null),speechRef=useRef<any>(null);
- const refresh=async()=>{try{const c=await fetch("/api/assistant?clarifications=1");if(c.ok)setPending((await c.json()).clarifications||[])}catch{}try{const r=await fetch("/api/assistant");if(r.ok){const d=await r.json();setMemories(d.memories||[]);setCats(d.cats||[]);setStats(d.stats||{catsRecorded:0,catsFoundHomes:0,spayedNeutered:0,vaccinated:0,cashInText:"$0.00",cashOutText:"$0.00"})}}catch{}}; useEffect(()=>{refresh()},[]);
- const openCat=async(id:string)=>{setPageLoading(true);try{const r=await fetch(`/api/assistant?catId=${encodeURIComponent(id)}`);if(r.ok)setDetail(await r.json())}finally{setPageLoading(false)}};
- const openCorrection=async(item:Memory&{detail:string})=>{setEditing(item);setCorrection(item.detail);setHistory([]);setReply(null);try{const r=await fetch(`/api/assistant?corrections=1&recordId=${encodeURIComponent(item.id)}`);if(r.ok)setHistory((await r.json()).corrections||[])}catch{}};
- const undoCorrection=async()=>{if(!editing?.correctionId)return;setLoading(true);try{const payload={correctionId:editing.correctionId};const r=await fetch("/api/assistant",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestKey:requestKey(payload)})});const data=await r.json();if(!r.ok)throw new Error(data.message);retryRef.current=null;setEditing(null);setReply(null);setToast("Correction undone");window.setTimeout(()=>setToast(""),2400);await refresh()}catch(e){setReply({message:e instanceof Error?e.message:"The connection failed, so I can’t confirm whether the undo saved. Retry to check safely."})}finally{setLoading(false)}};
- const saveCorrection=async()=>{if(!editing||!correction.trim())return;setLoading(true);try{const payload={id:editing.id,recordType:editing.recordType,version:editing.version,correction:correction.trim()};const r=await fetch("/api/assistant",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestKey:requestKey(payload)})});const data=await r.json();if(!r.ok)throw new Error(data.message);if(data.outcome==="needs_confirmation"){setReply(data);return}retryRef.current=null;setEditing(null);setCorrection("");setReply(null);setToast("Correction saved");window.setTimeout(()=>setToast(""),2400);await refresh()}catch(e){setReply({message:e instanceof Error?e.message:"The connection failed, so I can’t confirm whether the correction saved. Retry to check safely."})}finally{setLoading(false)}};
- const confirmProposal=async()=>{const id=reply?.proposalId;if(!id)return;setLoading(true);try{const r=await fetch("/api/assistant",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({confirmProposalId:id,photoDataUrl:photo?.dataUrl,requestKey:`confirm-${id}`})});const data=await r.json();if(!r.ok){setReply(data);return}setReply(null);setEditing(null);setCorrection("");setMode(null);setText("");setPhoto(null);setTab("home");setToast("Records added");window.setTimeout(()=>setToast(""),2400);await refresh()}catch{setReply({outcome:"uncertain",message:"The connection failed, so I can’t confirm whether it saved. Tap Yes again to check safely without adding duplicates."})}finally{setLoading(false)}};
- const dismissProposal=async()=>{const id=reply?.proposalId;setReply(null);if(!id)return;try{await fetch("/api/assistant",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({rejectProposalId:id})})}catch{/* The pending change expires on its own. */}};
- const confirmUI=reply?.outcome==="needs_confirmation"?<div className="reply clarify"><strong>Please confirm — nothing is saved yet</strong><p>{reply.message}</p><button className="primary" disabled={loading} onClick={confirmProposal}>Yes, save it</button><button className="close" disabled={loading} onClick={dismissProposal}>No, don’t change anything</button></div>:null;
- const submit=async()=>{if(!text.trim()&&!photo)return;setLoading(true);setReply(null);try{const payload={input:text.trim(),mode,sessionId,photoName:photo?.name,photoDataUrl:photo?.dataUrl};const r=await fetch("/api/assistant",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,requestKey:requestKey(payload)})});const data=await r.json();if(!r.ok){setReply(data);return}retryRef.current=null;const changed=(data.created?.length||0)+(data.updated?.length||0);if(changed&&mode!=="ask"&&!data.clarification){setMode(null);setText("");setPhoto(null);setTab("home");setToast("Records added");window.setTimeout(()=>setToast(""),2400)}else setReply(data);await refresh()}catch{setReply({outcome:"uncertain",message:"The connection failed, so I can’t confirm whether it saved. Your words and photo are still here. Retry to check safely without adding duplicates."})}finally{setLoading(false)}};
- const open=(next:"text"|"ask"|"photo")=>{setMode(next);setReply(null);setMicError("");setText("");setPhoto(null)};
- const startMic=()=>{setMode("mic");setReply(null);setText("");setMicError("");const w=window as any;const Recognition=w.SpeechRecognition||w.webkitSpeechRecognition;if(!Recognition){setMicError("Live transcription isn’t available in this browser. Use Type an update instead.");return}const recognition=new Recognition();speechRef.current=recognition;recognition.continuous=true;recognition.interimResults=true;recognition.lang="en-US";recognition.onstart=()=>setListening(true);recognition.onresult=(event:any)=>{let words="";for(let i=0;i<event.results.length;i++)words+=event.results[i][0].transcript;setText(words)};recognition.onerror=(event:any)=>{setListening(false);setMicError(event.error==="not-allowed"?"Microphone access was blocked. Allow access or use Type an update.":"I couldn’t hear that clearly. Tap the microphone to try again.")};recognition.onend=()=>setListening(false);recognition.start()};
- const stopMic=()=>{speechRef.current?.stop();setListening(false)};
- const photoError=()=>setReply({outcome:"rejected",message:"I couldn’t read that photo. Choose it again; nothing has been saved."}); const onPhoto=(e:ChangeEvent<HTMLInputElement>)=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onerror=photoError;reader.onload=()=>{const image=new Image();image.onerror=photoError;image.onload=()=>{const scale=Math.min(1,1280/Math.max(image.width,image.height));const canvas=document.createElement("canvas");canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);const context=canvas.getContext("2d");if(!context){photoError();return}context.drawImage(image,0,0,canvas.width,canvas.height);setPhoto({name:file.name,dataUrl:canvas.toDataURL("image/jpeg",.78)});setMode("photo")};image.src=String(reader.result)};reader.readAsDataURL(file);e.target.value=""};
- const switchTab=(next:string)=>{if(next===tab)return;setPageLoading(true);window.setTimeout(()=>{setTab(next);setPageLoading(false)},350)};
- const formatActivityDate=(value:string)=>{const d=new Date(value);return Number.isNaN(d.getTime())?value:new Intl.DateTimeFormat("en-US",{weekday:"long",month:"long",day:"numeric",hour:"numeric",minute:"2-digit"}).format(d)};
- const visible:any[]=tab==="cats"?cats.map(c=>({id:c.id,kind:"cat",title:c.displayName,detail:`${c.description} · ${c.status}`,createdAt:`${c.events} events`,photoId:c.photoId})):memories.map(m=>({...m,title:formatActivityDate(m.createdAt),detail:`${m.title}${m.detail?` — ${m.detail}`:""}`}));
- const lifetimeImpact=<><section className="summaryCard"><div><p className="eyebrow">LIFETIME IMPACT</p><h3>Your work at a glance</h3></div><div className="stats"><div><strong>{stats.catsRecorded}</strong><span>Cats recorded</span></div><div><strong>{stats.catsFoundHomes}</strong><span>Found homes</span></div><div><strong>{stats.spayedNeutered}</strong><span>Spayed/neutered</span></div></div><div className="stats second"><div><strong>{stats.vaccinated}</strong><span>Vaccinated</span></div><div><strong>{stats.cashInText}</strong><span>Cash received</span></div><div><strong>{stats.cashOutText}</strong><span>Cash spent</span></div></div></section><p className="accountingNote">Operational records only — not audited accounting.</p></>;
- return <main className="shell"><header className="topbar"><div className="topbarTitle"><p className="eyebrow">GOOD MORNING, ARI</p><h1>TNR Assistant</h1></div><button className="avatar" aria-label="Open profile">A</button></header>
- {tab==="home"?<><section className="hero"><img className="peekCat" src="/tnr-cat-peeking.png" alt="Gray cat peeking over the card"/><div className="colonyBadge"><img src="/cat-colony.png" alt="Cat colony"/></div><div className="heroCopy"><p className="eyebrow light">THE FULL STORY OF YOUR RESCUE WORK.</p><h2>What happened today?</h2><p>Tell me naturally. I’ll organize the details and ask only when I’m unsure.</p></div><div className="recordActions"><button className="talk" onClick={startMic} aria-label="Speak an update"><span className="mic">●</span><span className="actionCopy"><b>SPEAK AN UPDATE</b><small>Open microphone</small></span></button><button className="typeUpdate" onClick={()=>open("text")}><span className="typeIcon">Aa</span><span><strong>Type an update</strong><small>Open text window</small></span></button></div></section><ClarificationCards items={pending} sessionId={sessionId} onChanged={refresh}/><section className="quickGrid"><button onClick={()=>open("photo")}><span className="actionIcon photo">▣</span><span><strong>Add photo</strong><small>Document a cat</small></span><b>›</b></button><button onClick={()=>open("ask")}><span className="actionIcon ask">?</span><span><strong>Ask your assistant</strong><small>Query your records</small></span><b>›</b></button></section></>:tab==="dashboard"?<>{lifetimeImpact}</>:tab==="records"?<RecordsApp/>:<><section className="recent"><div className="sectionTitle"><div><p className="eyebrow">RECORDED</p><h3>{tab==="cats"?"Cats":"All activity"}</h3></div>{tab==="activity"&&<span className="editHint">Tap an entry to correct it</span>}</div><div className="memoryList">{visible.slice(0,50).map(item=><article key={item.id} className={item.kind==="cat"?"catRow":"activityRow"} onClick={()=>item.kind==="cat"?openCat(item.id):openCorrection(item)}><span className={`eventIcon ${item.kind==="income"||item.kind==="in-kind"?"green":item.kind==="expense"?"coral":"blue"}`}>{item.kind==="cat"&&item.photoId?<img src={`/api/assistant?photoId=${encodeURIComponent(item.photoId)}`} alt=""/>:item.kind==="cat"?"♧":item.kind==="income"?"↗":item.kind==="expense"?"↘":"✦"}</span><div>{item.title&&<strong>{item.title}</strong>}<p>{item.detail}</p></div><time>{item.kind==="cat"?`${item.createdAt} ›`:item.correctionId?"Corrected · Edit ›":"Edit ›"}</time></article>)}{!visible.length&&<div className="empty">Your first memory will appear here.</div>}</div></section></>}
- <input ref={libraryRef} type="file" accept="image/*" hidden onChange={onPhoto}/><input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={onPhoto}/>{editing&&<div className="sheetBackdrop" onClick={()=>setEditing(null)}><section className="sheet" onClick={e=>e.stopPropagation()}><div className="handle"/><p className="eyebrow">CORRECT ACTIVITY</p><h2>{formatActivityDate(editing.createdAt)}</h2><p className="correctionHelp">Describe the complete corrected version. The assistant will replace this activity and update its linked records. The original is kept in history and the correction can be undone.</p><textarea autoFocus value={correction} onChange={e=>setCorrection(e.target.value)}/>{confirmUI}{reply&&reply.outcome!=="needs_confirmation"&&<div className="reply"><p>{reply.message}</p></div>}<button className="primary" disabled={loading||!correction.trim()} onClick={saveCorrection}>{loading?"Updating linked records…":"Save correction"}</button>{editing.correctionId&&<button className="close" disabled={loading} onClick={undoCorrection}>Undo last correction</button>}{history.length>0&&<div className="correctionHistory"><p className="eyebrow">HISTORY</p>{history.map(h=><p key={h.id}>{formatActivityDate(h.createdAt)} — {h.kind==="undo"?"Undone":h.status==="undone"?"Corrected (later undone)":"Corrected"}{h.reason&&h.kind==="correction"?`: “${h.reason}”`:""}{h.kind==="correction"&&h.original?` · was: ${(h.original.event_type||h.original.description||"").toString().replaceAll("_"," ")}${h.original.notes?` — ${h.original.notes}`:""}`:""}</p>)}</div>}<button className="close" onClick={()=>setEditing(null)}>Cancel</button></section></div>}{detail&&<div className="sheetBackdrop" onClick={()=>setDetail(null)}><section className="sheet detailSheet" onClick={e=>e.stopPropagation()}><div className="handle"/><p className="eyebrow">CAT HISTORY</p><h2>{detail.cat.displayName}</h2>{detail.photos[0]&&<img className="detailPhoto" src={`/api/assistant?photoId=${encodeURIComponent(detail.photos[0].id)}`} alt={detail.cat.displayName}/>}<div className="catFacts"><span>{detail.cat.current_status}</span>{detail.cat.origin&&<span>{detail.cat.origin}</span>}{detail.cat.current_location&&<span>{detail.cat.current_location}</span>}</div><div className="timeline">{detail.events.map(e=><article key={e.id}><time>{e.occurred_at.slice(0,10)}</time><div><strong>{e.event_type.replaceAll("_"," ")}</strong><p>{e.notes}</p></div></article>)}{!detail.events.length&&<div className="empty">No history yet.</div>}</div><button className="primary" onClick={()=>{setDetail(null);open("text");setText(`Update ${detail.cat.displayName}: `)}}>Add an update</button><button className="close" onClick={()=>setDetail(null)}>Close</button></section></div>}{mode&&<div className="sheetBackdrop" onClick={()=>{stopMic();setMode(null)}}><section className="sheet" onClick={e=>e.stopPropagation()}><div className="handle"/><p className="eyebrow">{mode==="ask"?"ASK YOUR ASSISTANT":mode==="photo"?"PHOTO + CONTEXT":mode==="mic"?(listening?"MICROPHONE IS ON":"MICROPHONE PAUSED"):"TYPE AN UPDATE"}</p><h2>{mode==="ask"?"What do you want to know?":mode==="photo"?"Add a cat photo":mode==="mic"?(listening?"I’m listening…":"Review what I heard"):"Tell me what happened"}</h2>{mode==="mic"?<div className="voiceCapture"><button className={`bigMic ${listening?"isListening":""}`} onClick={listening?stopMic:startMic} aria-label={listening?"Stop microphone":"Start microphone"}>{listening?"■":"●"}</button><p>{text||"Start speaking—your words will appear here."}</p>{micError&&<div className="micError">{micError}</div>}</div>:<>{mode==="photo"&&<div className="photoChooser">{photo?<img src={photo.dataUrl} alt="Selected cat"/>:<p>Choose an existing photo or take a new one.</p>}<div><button type="button" onClick={()=>libraryRef.current?.click()}>Photo library</button><button type="button" onClick={()=>cameraRef.current?.click()}>Take photo</button></div></div>}<textarea autoFocus={mode!=="photo"} value={text} onChange={e=>setText(e.target.value)} placeholder={mode==="photo"?"Add what you know about this cat (optional)…":"Type naturally…"}/></>}<div className="suggestions">{prompts.map(p=><button key={p} onClick={()=>setText(p)}>{p}</button>)}</div>{confirmUI}{reply&&reply.outcome!=="needs_confirmation"&&<div className={`reply ${reply.clarification?"clarify":""}`}><strong>{reply.clarification?"One quick question":mode==="ask"?"Answer":reply.outcome==="committed"?"Recorded":reply.outcome==="uncertain"?"Save status unknown":"Update not saved"}</strong><p>{reply.clarification||reply.message}</p></div>}<button className="primary" disabled={loading||(!text.trim()&&!photo)} onClick={()=>{stopMic();submit()}}>{loading?"Checking the rescue memory…":mode==="ask"?"Ask":mode==="photo"?"Save photo":"Review & record"}</button><button className="close" onClick={()=>{stopMic();setMode(null)}}>Close</button></section></div>}
- {toast&&<div className="toast" role="status">✓ {toast}</div>}{(loading||pageLoading)&&<div className="loadingOverlay" role="status" aria-live="polite"><img src="/tnr-cat.png" alt=""/><span>{loading?"Your assistant is working…":"Loading…"}</span></div>}<nav>{[["home","⌂","Home"],["cats","♧","Cats"],["activity","◎","Activity"],["dashboard","▥","Dashboard"],["records","☰","Records"]].map(([id,icon,label])=><button key={id} className={tab===id?"active":""} onClick={()=>switchTab(id)}><span>{icon}</span>{label}</button>)}</nav></main>}
+
+type Cat = { id: string; displayName: string; description: string; status: string; origin: string; events: number; photoId?: string | null };
+type LifetimeStats = { catsRecorded: number; catsFoundHomes: number; spayedNeutered: number; vaccinated: number; cashInText: string; cashOutText: string };
+type Banner = { message: string; retry?: () => void };
+type Row = { id: string; kind: string; title: string; detail: string; createdAt: string; photoId?: string | null; correctionId?: string | null; memory?: Memory };
+
+const EMPTY_STATS: LifetimeStats = { catsRecorded: 0, catsFoundHomes: 0, spayedNeutered: 0, vaccinated: 0, cashInText: "$0.00", cashOutText: "$0.00" };
+const TABS = [["home", "⌂", "Home"], ["cats", "♧", "Cats"], ["activity", "◎", "Activity"], ["dashboard", "▥", "Dashboard"], ["records", "☰", "Records"]] as const;
+
+export default function Home() {
+  const [tab, setTab] = useState("home");
+  const [capture, setCapture] = useState<Pick<Draft, "mode" | "text" | "photo"> | null>(null);
+  const [savedDraft, setSavedDraft] = useState<Draft | null>(null);
+  const [toast, setToast] = useState("");
+  const [banner, setBanner] = useState<Banner | null>(null);
+  const [loading, setLoading] = useState<string>("records");
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [stats, setStats] = useState<LifetimeStats>(EMPTY_STATS);
+  const [pending, setPending] = useState<PendingClarification[]>([]);
+  const [detail, setDetail] = useState<CatDetail | null>(null);
+  const [editing, setEditing] = useState<Memory | null>(null);
+  const [sessionId] = useState(() => { try { const k = "catnr-session"; const s = sessionStorage.getItem(k) || crypto.randomUUID(); sessionStorage.setItem(k, s); return s; } catch { return crypto.randomUUID(); } });
+  const toastTimer = useRef<number | undefined>(undefined);
+
+  const say = useCallback((message: string) => { setToast(message); window.clearTimeout(toastTimer.current); toastTimer.current = window.setTimeout(() => setToast(""), 3500); }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading("records");
+    const [questions, records] = await Promise.all([load("/api/assistant?clarifications=1", "load your open questions"), load("/api/assistant", "load your records")]);
+    if (questions.ok) setPending(questions.data.clarifications || []);
+    if (records.ok) { setMemories(records.data.memories || []); setCats(records.data.cats || []); setStats(records.data.stats || EMPTY_STATS); }
+    const failed = !records.ok ? records : !questions.ok ? questions : null;
+    setBanner(failed && !failed.ok ? { message: failed.reply.message, retry: () => void refresh() } : null);
+    setSavedDraft(drafts.load()); // also picks up an unsent update left behind by a page reload
+    setLoading("");
+  }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const openCat = async (id: string) => {
+    setLoading("cat");
+    const result = await load(`/api/assistant?catId=${encodeURIComponent(id)}`, "open this cat’s history");
+    setLoading("");
+    if (result.ok) setDetail(result.data as unknown as CatDetail);
+    else setBanner({ message: result.reply.message, retry: () => void openCat(id) });
+  };
+
+  const openCapture = (mode: CaptureMode, prefill = "") => {
+    const keep = mode !== "ask" ? savedDraft : null; // continue an unsent update instead of discarding it
+    setBanner(null);
+    setCapture({ mode, text: keep?.text || prefill, photo: keep?.photo ?? null });
+  };
+  const closeCapture = () => { setCapture(null); setSavedDraft(drafts.load()); };
+  const discardDraft = () => { if (confirmDiscard()) { drafts.clear(); setSavedDraft(null); } };
+  const saved = (message: string) => { setCapture(null); setEditing(null); setSavedDraft(null); setTab("home"); say(message); void refresh(); };
+
+  const rows: Row[] = tab === "cats"
+    ? cats.map((c) => ({ id: c.id, kind: "cat", title: c.displayName, detail: `${c.description} · ${c.status}`, createdAt: `${c.events} events`, photoId: c.photoId }))
+    : memories.map((m) => { const memory = { ...m, title: formatActivityDate(m.createdAt), detail: `${m.title}${m.detail ? ` — ${m.detail}` : ""}` }; return { ...memory, memory }; });
+
+  const impact = (
+    <>
+      <section className="summaryCard" aria-label="Lifetime impact">
+        <div><p className="eyebrow">LIFETIME IMPACT</p><h3>Your work at a glance</h3></div>
+        <div className="stats"><div><strong>{stats.catsRecorded}</strong><span>Cats recorded</span></div><div><strong>{stats.catsFoundHomes}</strong><span>Found homes</span></div><div><strong>{stats.spayedNeutered}</strong><span>Spayed/neutered</span></div></div>
+        <div className="stats second"><div><strong>{stats.vaccinated}</strong><span>Vaccinated</span></div><div><strong>{stats.cashInText}</strong><span>Cash received</span></div><div><strong>{stats.cashOutText}</strong><span>Cash spent</span></div></div>
+      </section>
+      <p className="accountingNote">Operational records only — not audited accounting.</p>
+    </>
+  );
+
+  return (
+    <main className="shell">
+      <header className="topbar">
+        <div className="topbarTitle"><p className="eyebrow">GOOD MORNING, ARI</p><h1>TNR Assistant</h1></div>
+        <span className="avatar" aria-hidden="true">A</span>
+      </header>
+      {banner && <div className="recError" role="alert"><p>{banner.message}</p><div className="recButtons">{banner.retry && <button type="button" className="recSmall" onClick={banner.retry}>Try again</button>}<button type="button" className="recSmall" onClick={() => setBanner(null)}>Dismiss</button></div></div>}
+      {loading && <p className="recHint" role="status">{loading === "cat" ? "Opening this cat’s history…" : "Loading your records…"}</p>}
+
+      {tab === "home" ? (
+        <>
+          <section className="hero">
+            <img className="peekCat" src="/tnr-cat-peeking.png" alt="" />
+            <div className="colonyBadge"><img src="/cat-colony.png" alt="" /></div>
+            <div className="heroCopy"><p className="eyebrow light">THE FULL STORY OF YOUR RESCUE WORK.</p><h2>What happened today?</h2><p>Tell me naturally. I’ll organize the details and ask only when I’m unsure.</p></div>
+            <div className="recordActions">
+              <button type="button" className="talk" onClick={() => openCapture("mic")}><span className="mic" aria-hidden="true">●</span><span className="actionCopy"><b>SPEAK AN UPDATE</b><small>Open microphone</small></span></button>
+              <button type="button" className="typeUpdate" onClick={() => openCapture("text")}><span className="typeIcon" aria-hidden="true">Aa</span><span><strong>Type an update</strong><small>Open text window</small></span></button>
+            </div>
+          </section>
+          {savedDraft && !capture && (
+            <section className="reply clarify" aria-label="Unsent update">
+              <strong>You have an update that isn’t saved yet</strong>
+              <p>{savedDraft.text ? `“${savedDraft.text.slice(0, 120)}${savedDraft.text.length > 120 ? "…" : ""}”` : "A photo you chose"}{savedDraft.text && savedDraft.photo ? " (with a photo)" : ""}. It’s kept on this phone.</p>
+              <div className="recButtons"><button type="button" className="primary" onClick={() => openCapture(savedDraft.mode === "ask" ? "text" : savedDraft.mode)}>Continue</button><button type="button" className="recSecondary" onClick={discardDraft}>Discard</button></div>
+            </section>
+          )}
+          <ClarificationCards items={pending} sessionId={sessionId} onChanged={refresh} />
+          <section className="quickGrid">
+            <button type="button" onClick={() => openCapture("photo")}><span className="actionIcon photo" aria-hidden="true">▣</span><span><strong>Add photo</strong><small>Document a cat</small></span><b aria-hidden="true">›</b></button>
+            <button type="button" onClick={() => openCapture("ask")}><span className="actionIcon ask" aria-hidden="true">?</span><span><strong>Ask your assistant</strong><small>Query your records</small></span><b aria-hidden="true">›</b></button>
+          </section>
+        </>
+      ) : tab === "dashboard" ? impact : tab === "records" ? <RecordsApp /> : (
+        <section className="recent">
+          <div className="sectionTitle"><div><p className="eyebrow">RECORDED</p><h3>{tab === "cats" ? "Cats" : "All activity"}</h3></div>{tab === "activity" && <span className="editHint">Tap an entry to correct it</span>}</div>
+          <div className="memoryList">
+            {rows.slice(0, 50).map((item) => (
+              <button type="button" key={item.id} className={`rowBtn ${item.kind === "cat" ? "catRow" : "activityRow"}`} onClick={() => (item.kind === "cat" ? void openCat(item.id) : setEditing(item.memory!))}>
+                <span className={`eventIcon ${item.kind === "income" || item.kind === "in-kind" ? "green" : item.kind === "expense" ? "coral" : "blue"}`} aria-hidden="true">{item.kind === "cat" && item.photoId ? <img src={`/api/assistant?photoId=${encodeURIComponent(item.photoId)}`} alt="" /> : item.kind === "cat" ? "♧" : item.kind === "income" ? "↗" : item.kind === "expense" ? "↘" : "✦"}</span>
+                <span>{item.title && <strong>{item.title}</strong>}<p>{item.detail}</p></span>
+                <span className="rowHint">{item.kind === "cat" ? `${item.createdAt} ›` : item.correctionId ? "Corrected · Edit ›" : "Edit ›"}</span>
+              </button>
+            ))}
+            {!rows.length && !loading && <div className="empty">{tab === "cats" ? "No cats yet. Tell the assistant about a cat, or add one under Records." : "Your first memory will appear here."}</div>}
+          </div>
+        </section>
+      )}
+
+      {capture && <CaptureSheet initial={capture} sessionId={sessionId} onClose={closeCapture} onSaved={saved} />}
+      {editing && <CorrectionSheet item={editing} onClose={() => setEditing(null)} onSaved={saved} />}
+      {detail && <CatHistorySheet detail={detail} onClose={() => setDetail(null)} onAddUpdate={() => { const name = detail.cat.displayName; setDetail(null); openCapture("text", `Update ${name}: `); }} />}
+
+      {toast && <div className="toast" role="status">✓ {toast}</div>}
+      <nav aria-label="Main">
+        {TABS.map(([id, icon, label]) => <button type="button" key={id} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span aria-hidden="true">{icon}</span>{label}</button>)}
+      </nav>
+    </main>
+  );
+}

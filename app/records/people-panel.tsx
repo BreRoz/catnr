@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useAction, useList, useRecord } from "./hooks";
 import MergeFlow from "./merge-flow";
-import { Message, Pager, RecordForm, SearchBox, Select, Sheet, titleCase, when, type FieldDef, type Values } from "./ui";
+import { LoadingNote, Message, Pager, RecordForm, SearchBox, Select, Sheet, titleCase, when, type FieldDef, type Values } from "./ui";
 
 const TYPES = ["donor", "adopter", "foster", "volunteer", "veterinarian", "other"];
 type Person = { id: string; version: number; name: string; type: string | null; generalLocation: string | null; contact: string | null; notes: string | null; archivedAt: string | null; mergedInto: string | null; eventCount: number; transactionCount: number };
@@ -32,7 +32,8 @@ export default function PeoplePanel() {
         </div>
         <button className="primary" onClick={() => { setAdding(true); add.clear(); }}>+ Add a contact</button>
       </div>
-      <Message error={error} />
+      <Message error={error} onRetry={reload} />
+      <LoadingNote loading={loading} what="people" />
       <div className="recList" aria-busy={loading}>
         {data?.items.map((p) => (
           <button key={p.id} type="button" className="recItem" onClick={() => setOpen(p.id)}>
@@ -61,7 +62,7 @@ function PersonSheet({ id, onClose, onChanged }: { id: string; onClose: () => vo
   const act = useAction();
   const refresh = () => { reload(); onChanged(); };
   const p = data?.person;
-  if (!p) return <Sheet title="Contact" onClose={onClose}><Message error={error} />{!error && <p className="recHint">Loading…</p>}</Sheet>;
+  if (!p) return <Sheet title="Contact" onClose={onClose}><Message error={error} onRetry={reload} />{!error && <p className="recHint" role="status">Loading…</p>}</Sheet>;
   const archived = !!p.archivedAt;
   const save = async (v: Values) => {
     const now = toValues(p), changes: Record<string, string | null> = {};

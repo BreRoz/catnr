@@ -19,7 +19,7 @@ export default function DuplicatesPanel() {
     <section aria-label="Possible duplicates">
       <p className="recHint">These look like the same {type === "person" ? "person" : type}. Nothing is merged until you review it, and nothing is ever deleted.</p>
       <div className="recTabs" role="tablist">{(Object.keys(LABEL) as MergeType[]).map((t) => <button key={t} role="tab" aria-selected={type === t} className={type === t ? "active" : ""} onClick={() => setType(t)}>{LABEL[t]}</button>)}</div>
-      <Message error={error || dismiss.error} />
+      <Message error={error || dismiss.error} onRetry={error ? reload : undefined} />
       {loading && <p className="recHint">Looking for duplicates…</p>}
       <div className="recList">
         {pairs?.pairs?.map((p) => {

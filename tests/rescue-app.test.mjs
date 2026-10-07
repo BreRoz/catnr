@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const route = await readFile(new URL("../app/api/assistant/route.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/reliability.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/validation.ts", import.meta.url), "utf8");
-const page = await readFile(new URL("../app/rescue-client.tsx", import.meta.url), "utf8");
+const page = (await Promise.all(["rescue-client","capture-sheet","correction-sheet","cat-history-sheet"].map((f) => readFile(new URL(`../app/${f}.tsx`, import.meta.url), "utf8")))).join("\n");
 const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
 
 test("uses structured AI extraction instead of scripted demo sentences", () => {
@@ -23,7 +23,7 @@ test("requires ambiguity handling and validates identifiers before writes", () =
 
 test("supports the MVP record types and audit links", () => {
   for (const table of ["cats", "colonies", "events", "photos", "people", "transactions", "ai_inputs"]) {
-    assert.match(schema, new RegExp(`sqliteTable\\(\"${table}\"`));
+    assert.match(schema, new RegExp(`sqliteTable\\("${table}"`));
   }
   assert.match(schema, /recordsCreated:\s*text\("records_created"\)/);
   assert.match(schema, /ownerId:\s*text\("owner_id"\)/);

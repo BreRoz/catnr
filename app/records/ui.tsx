@@ -1,31 +1,20 @@
 "use client";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState } from "react";
+import { confirmDiscard, useReportDirty } from "../dialog";
 import { useList } from "./hooks";
 import type { Page } from "./api";
 
-export function Sheet({ title, eyebrow, onClose, children }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div className="sheetBackdrop" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <section className="sheet recSheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="handle" />
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h2>{title}</h2>
-        {children}
-        <button type="button" className="close" onClick={onClose}>Close</button>
-      </section>
-    </div>
-  );
-}
+export { Sheet } from "../dialog";
 
-export function Message({ error, notice }: { error?: string; notice?: string }) {
-  if (error) return <p className="recError" role="alert">{error}</p>;
+export function Message({ error, notice, onRetry }: { error?: string; notice?: string; onRetry?: () => void }) {
+  if (error) return <div className="recError" role="alert"><p>{error}</p>{onRetry && <button type="button" className="recSmall" onClick={onRetry}>Try again</button>}</div>;
   if (notice) return <p className="recNotice" role="status">{notice}</p>;
   return null;
+}
+
+/** Visible and announced while a list or detail is loading, so an empty screen is never unexplained. */
+export function LoadingNote({ loading, what }: { loading: boolean; what: string }) {
+  return loading ? <p className="recHint" role="status">Loading {what}…</p> : null;
 }
 
 export type FieldDef = {
@@ -37,12 +26,15 @@ export type Values = Record<string, string>;
 export function RecordForm({ fields, initial, submitLabel, busy, onSubmit, onCancel }: { fields: FieldDef[]; initial: Values; submitLabel: string; busy: boolean; onSubmit: (values: Values) => void; onCancel?: () => void }) {
   const [values, setValues] = useState<Values>(initial);
   const set = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }));
+  const reportDirty = useReportDirty();
+  const dirty = fields.some((f) => (values[f.key] ?? "") !== (initial[f.key] ?? ""));
+  useEffect(() => { reportDirty(dirty); return () => reportDirty(false); }, [dirty, reportDirty]);
   return (
     <form className="recForm" onSubmit={(e) => { e.preventDefault(); onSubmit(values); }}>
       {fields.map((f) => <Field key={f.key} def={f} value={values[f.key] ?? ""} onChange={(v) => set(f.key, v)} />)}
       <div className="recButtons">
         <button className="primary" type="submit" disabled={busy}>{busy ? "Saving…" : submitLabel}</button>
-        {onCancel && <button className="close" type="button" onClick={onCancel}>Cancel</button>}
+        {onCancel && <button className="close" type="button" onClick={() => { if (!dirty || confirmDiscard()) onCancel(); }}>Cancel</button>}
       </div>
     </form>
   );

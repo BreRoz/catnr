@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useAction, useList, useRecord } from "./hooks";
 import MergeFlow from "./merge-flow";
-import { Message, Pager, RecordForm, SearchBox, Sheet, when, type FieldDef, type Values } from "./ui";
+import { LoadingNote, Message, Pager, RecordForm, SearchBox, Sheet, when, type FieldDef, type Values } from "./ui";
 
 type Colony = { id: string; version: number; name: string; generalLocation: string | null; notes: string | null; status: string; latitude: number | null; longitude: number | null; archivedAt: string | null; mergedInto: string | null; catCount: number };
 type Detail = { colony: Colony; cats: Array<{ id: string; displayName: string; currentStatus: string }>; money: Array<{ direction: string; currency: string; minor: number }>; changes: Array<{ id: string; action: string; reason: string | null; createdAt: string }>; mergedFrom: Array<{ colonyId: string; name: string }> };
@@ -29,7 +29,8 @@ export default function ColoniesPanel() {
         <div className="recFilters"><select className="recSelect" aria-label="Show" value={archived} onChange={(e) => { setArchived(e.target.value); setPage(1); }}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></div>
         <button className="primary" onClick={() => { setAdding(true); add.clear(); }}>+ Add a colony</button>
       </div>
-      <Message error={error} />
+      <Message error={error} onRetry={reload} />
+      <LoadingNote loading={loading} what="colonies" />
       <div className="recList" aria-busy={loading}>
         {data?.items.map((c) => (
           <button key={c.id} type="button" className="recItem" onClick={() => setOpen(c.id)}>
@@ -58,7 +59,7 @@ function ColonySheet({ id, onClose, onChanged }: { id: string; onClose: () => vo
   const act = useAction();
   const refresh = () => { reload(); onChanged(); };
   const c = data?.colony;
-  if (!c) return <Sheet title="Colony" onClose={onClose}><Message error={error} />{!error && <p className="recHint">Loading…</p>}</Sheet>;
+  if (!c) return <Sheet title="Colony" onClose={onClose}><Message error={error} onRetry={reload} />{!error && <p className="recHint" role="status">Loading…</p>}</Sheet>;
   const archived = !!c.archivedAt;
   const save = async (v: Values) => {
     const now = toValues(c), changes: Record<string, string | null> = {};

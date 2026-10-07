@@ -47,8 +47,19 @@ export async function commit(db:D1,owner:string,key:string,hash:string,base:numb
   db.prepare("DELETE FROM write_guards WHERE owner_id=?").bind(owner)
  ]);
 }
+/** The AI provider could not be reached or answered with an error. Nothing was written. */
+export class AiUnavailable extends Error {}
+
+/** Calls the AI provider with a time limit so a stalled request ends in a clear message, not an endless spinner. */
+export async function providerFetch(url:string,init:RequestInit,label:string){
+ let response:Response;
+ try{response=await fetch(url,{...init,signal:AbortSignal.timeout(45000)})}catch{throw new AiUnavailable(`${label} did not respond`)}
+ if(!response.ok)throw new AiUnavailable(`${label} error ${response.status}`);
+ return response;
+}
+
 export function writeFailure(error:unknown,uncertain=false){
+ if(error instanceof AiUnavailable)return Response.json({outcome:"ai_unavailable",message:"The assistant couldn’t be reached, so nothing was saved. Your words and photo are still here. Try again in a minute, or add this under Records, which works without the assistant."},{status:503});
  const conflict=String(error).includes("Concurrent edit");
  return Response.json({outcome:conflict?"conflict":uncertain?"uncertain":"retryable",message:conflict?"Another update changed these records. Refresh and review your update before saving again.":uncertain?"I can’t confirm whether the update saved. Retry this same update to check safely without duplicates.":"Nothing was silently changed. The update could not be committed. Your words and photo are still here; retry the same update."},{status:conflict?409:503});
 }
-

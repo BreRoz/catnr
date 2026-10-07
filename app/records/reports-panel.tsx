@@ -9,10 +9,10 @@ import type { Report } from "../reports/queries";
 const money = (totals: Array<{ currency: string; minor: number }>) => totals.length ? totals.map((t) => formatMoney(t.minor, t.currency)).join(" + ") : formatMoney(0);
 
 export default function ReportsPanel() {
-  const [from, setFrom] = useState(""), [to, setTo] = useState("");
+  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{ key: string; report?: Report; error?: string }>({ key: "" });
   const rangeBad = !!from && !!to && from > to;
-  const key = `${from}|${to}`;
+  const key = `${from}|${to}|${attempt}`;
   useEffect(() => {
     if (rangeBad) return;
     let cancelled = false;
@@ -35,7 +35,7 @@ export default function ReportsPanel() {
         {(from || to) && <button type="button" className="recLink" onClick={() => { setFrom(""); setTo(""); }}>All time</button>}
       </div>
       {rangeBad && <p className="recError" role="alert">The start date is after the end date.</p>}
-      <Message error={state.key === key ? state.error : undefined} />
+      <Message error={state.key === key ? state.error : undefined} onRetry={() => setAttempt((n) => n + 1)} />
       {loading && <p className="recNotice" role="status">Loading…</p>}
       {report && !rangeBad && (
         <>

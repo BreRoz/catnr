@@ -4,7 +4,7 @@ import { photoUrl } from "./api";
 import { useAction, useList, useRecord } from "./hooks";
 import MergeFlow from "./merge-flow";
 import PhotoGallery from "./photo-gallery";
-import { Message, Pager, RecordForm, SearchBox, Select, Sheet, titleCase, when, type FieldDef, type Values } from "./ui";
+import { LoadingNote, Message, Pager, RecordForm, SearchBox, Select, Sheet, titleCase, when, type FieldDef, type Values } from "./ui";
 
 export const CAT_STATUSES = ["observed", "captured", "awaiting vet", "recovering", "foster", "available for adoption", "adoption pending", "adopted", "returned to colony", "lost", "deceased"];
 const EVENT_TYPES = ["first_seen", "captured", "intake", "transport", "vet_visit", "spay", "neuter", "vaccination", "testing", "medication", "illness", "injury", "observation", "foster", "adoption_interest", "application", "meet_and_greet", "adoption", "returned_to_colony", "lost", "deceased", "other"];
@@ -61,7 +61,8 @@ export default function CatsPanel() {
         </div>
         <button className="primary" onClick={() => { setAdding(true); add.clear(); }}>+ Add a cat</button>
       </div>
-      <Message error={error} />
+      <Message error={error} onRetry={reload} />
+      <LoadingNote loading={loading} what="cats" />
       <div className="recList" aria-busy={loading}>
         {data?.items.map((c) => (
           <button key={c.id} type="button" className="recItem" onClick={() => setOpen(c.id)}>
@@ -95,7 +96,7 @@ function CatSheet({ id, onClose, onChanged, onOpen }: { id: string; onClose: () 
   const refresh = () => { reload(); onChanged(); };
   const cat = data?.cat;
 
-  if (!cat) return <Sheet title="Cat" onClose={onClose}><Message error={error} />{!error && <p className="recHint">Loading…</p>}</Sheet>;
+  if (!cat) return <Sheet title="Cat" onClose={onClose}><Message error={error} onRetry={reload} />{!error && <p className="recHint" role="status">Loading…</p>}</Sheet>;
   const archived = !!cat.archivedAt;
   const save = async (v: Values) => {
     const changes: Record<string, string | null> = {}, now = toValues(cat);

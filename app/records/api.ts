@@ -1,3 +1,4 @@
+import { describeFailure } from "../feedback";
 // Client helpers for the manual record endpoints (/api/manage/*). None of these call the AI.
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number; pages: number; hasMore: boolean };
 export type Params = Record<string, string | number | boolean | null | undefined>;
@@ -10,25 +11,34 @@ export const toQuery = (params: Params) => {
   return q.toString();
 };
 
-export async function getJson<T>(resource: string, params: Params = {}): Promise<T> {
-  const query = toQuery(params);
-  const response = await fetch(`/api/manage/${resource}${query ? `?${query}` : ""}`, { headers: { accept: "application/json" } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(data.message || "Couldn’t load that. Try again.", response.status, data.outcome);
+const TIMEOUT_MS = 30000;
+const WHAT: Record<string, string> = { cats: "cats", colonies: "colonies", people: "people", transactions: "money entries", events: "history", photos: "photos", reports: "the report", duplicates: "possible duplicates", merges: "that merge" };
+
+/** Runs fetch with a time limit and maps every way it can go wrong to a plain-language ApiError. */
+async function request<T>(resource: string, init: RequestInit, kind: "read" | "write", action: string): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/manage/${resource}`, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  } catch (e) {
+    const f = describeFailure({ action, kind, network: true, timedOut: e instanceof DOMException && e.name === "TimeoutError" });
+    throw new ApiError(f.message, 0, f.saved === "unknown" ? "uncertain" : "network");
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data === null) {
+    const f = describeFailure({ action, kind, status: response.status, outcome: data?.outcome, message: data?.message, unreadable: data === null && response.ok });
+    throw new ApiError(f.message, response.status, data?.outcome);
+  }
   return data as T;
 }
 
+export function getJson<T>(resource: string, params: Params = {}): Promise<T> {
+  const query = toQuery(params);
+  return request<T>(`${resource}${query ? `?${query}` : ""}`, { headers: { accept: "application/json" } }, "read", `load ${WHAT[resource] ?? "that"}`);
+}
+
 /** POST a change. `requestKey` makes a retry after a lost connection safe (the server replays the first result). */
-export async function send<T = { message: string; id?: string }>(resource: string, body: Record<string, unknown>, requestKey: string, method: "POST" | "PATCH" = "POST"): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`/api/manage/${resource}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, requestKey }) });
-  } catch {
-    throw new ApiError("The connection failed, so I can’t tell whether that saved. Tap Save again — it’s safe to retry and won’t create a duplicate.", 0, "uncertain");
-  }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError(data.message || "That didn’t save. Nothing was changed.", response.status, data.outcome);
-  return data as T;
+export function send<T = { message: string; id?: string }>(resource: string, body: Record<string, unknown>, requestKey: string, method: "POST" | "PATCH" = "POST"): Promise<T> {
+  return request<T>(resource, { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ ...body, requestKey }) }, "write", "save that");
 }
 
 export const newKey = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);

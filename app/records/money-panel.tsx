@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useAction, useList, useRecord } from "./hooks";
-import { Message, Pager, RecordForm, SearchBox, Select, Sheet, titleCase, when, type FieldDef, type Values } from "./ui";
+import { LoadingNote, Message, Pager, RecordForm, SearchBox, Select, Sheet, titleCase, when, type FieldDef, type Values } from "./ui";
 
 const TYPES: Array<[string, string]> = [
   ["cash_donation", "Cash donation"], ["in_kind_donation", "In-kind donation (supplies)"], ["fundraiser_income", "Fundraiser income"], ["merchandise_income", "Merchandise sales"],
@@ -69,7 +69,8 @@ export default function MoneyPanel() {
         <button className="primary" onClick={() => { setAdding(true); add.clear(); }}>+ Record money or supplies</button>
       </div>
       {extra?.totals && !rangeBad && <p className="recTotals" aria-live="polite">In <strong>{extra.totals.cashInText}</strong> · Out <strong>{extra.totals.cashOutText}</strong> <small>(matching, counted entries)</small></p>}
-      <Message error={rangeBad ? undefined : error} />
+      <Message error={rangeBad ? undefined : error} onRetry={reload} />
+      <LoadingNote loading={loading} what="entries" />
       <div className="recList" aria-busy={loading}>
         {data?.items.map((t) => (
           <button key={t.id} type="button" className={`recItem${t.voidedAt ? " recVoided" : ""}`} onClick={() => setOpen(t.id)}>
@@ -99,7 +100,7 @@ function TxSheet({ id, categories, onClose, onChanged }: { id: string; categorie
   const act = useAction();
   const refresh = () => { reload(); onChanged(); };
   const t = data?.transaction;
-  if (!t) return <Sheet title="Entry" onClose={onClose}><Message error={error} />{!error && <p className="recHint">Loading…</p>}</Sheet>;
+  if (!t) return <Sheet title="Entry" onClose={onClose}><Message error={error} onRetry={reload} />{!error && <p className="recHint" role="status">Loading…</p>}</Sheet>;
   const voided = !!t.voidedAt;
   const save = async (v: Values) => {
     const now = toValues(t), changes: Record<string, string | null> = {};
