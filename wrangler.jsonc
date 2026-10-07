@@ -16,7 +16,7 @@
   "vars": {
     // Cloudflare Access settings. Every request must carry a valid Access
     // token for this team and application, or the worker refuses it.
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "ACCESS_TEAM_DOMAIN": "morning-dream-e9b3.cloudflareaccess.com",
+    "ACCESS_AUD": "115de8739c1c2e1df3adc720707a1c6bc4832797515f2e1e7174700354b313e8"
   }
 }
