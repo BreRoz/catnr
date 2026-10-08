@@ -13,13 +13,13 @@
 }
 .dataCard p {
   margin: 0;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.45;
 }
 .dataCard ul {
   margin: 0;
   padding-left: 20px;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.5;
 }
 .dataLink {
@@ -31,7 +31,7 @@
   padding: 10px 14px;
   border-radius: 12px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 16px;
 }
 .dataCard .recButtons {
   flex-wrap: wrap;
@@ -42,7 +42,7 @@
   border-radius: 12px;
   padding: 8px 12px;
   margin: 6px 0;
-  font-size: 13px;
+  font-size: 16px;
 }
 .dataRule summary {
   cursor: pointer;
@@ -54,7 +54,7 @@
 }
 .dataRule summary span {
   color: #5c6f66;
-  font-size: 12px;
+  font-size: 15px;
 }
 .dataRule p {
   margin: 6px 0 2px;
@@ -69,7 +69,7 @@
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 15px;
 }
 .importRows li {
   padding: 8px 10px;
@@ -98,7 +98,7 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.4;
 }
 .importSkip input {
@@ -137,42 +137,22 @@
   z-index: 3;
   top: -18px;
   right: 16px;
-  width: 76px;
-  height: 76px;
-  border-radius: 13px;
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
   background: #fff;
-  border: 3px solid #1b1b1b;
   box-shadow: 0 4px 14px #0d2c2355;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   text-align: center;
 }
-.todayCal:before,
-.todayCal:after {
-  content: "";
-  position: absolute;
-  top: -4px;
-  width: 6px;
-  height: 14px;
-  border-radius: 3px;
-  background: #1b1b1b;
-  border: 2px solid #fff;
-}
-.todayCal:before {
-  left: 20px;
-}
-.todayCal:after {
-  right: 20px;
-}
 .todayCalDay {
   background: var(--coral);
-  color: #1b1b1b;
-  font:
-    700 12px Arial,
-    Helvetica,
-    sans-serif;
-  padding: 10px 0 3px;
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 14px;
+  padding: 8px 0 4px;
   line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
@@ -181,11 +161,8 @@
   flex: 1;
   display: grid;
   place-items: center;
-  color: #1b1b1b;
-  font:
-    400 36px Arial,
-    Helvetica,
-    sans-serif;
+  color: var(--ink);
+  font: 600 38px Georgia;
   line-height: 1;
 }
 .hero .heroCopy .eyebrow {

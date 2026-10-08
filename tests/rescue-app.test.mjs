@@ -44,7 +44,7 @@ test("supports photo thumbnails, readable activity dates, and AI corrections", (
   assert.match(route, /Complete corrected version from Ari/);
   assert.match(page, /formatActivityDate/);
   assert.match(page, /Save correction/);
-  assert.match(page, /SPEAK AN UPDATE/);
+  assert.match(page, /Record Update/);
   assert.match(route, /created_at createdAt/);
   assert.match(page, /Records added/);
 });

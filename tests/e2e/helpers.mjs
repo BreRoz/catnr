@@ -16,7 +16,7 @@ export async function records(page, section) {
 
 /** Types an update to the assistant and presses the main button, as Ari would. */
 export async function tell(page, words, { ask = false } = {}) {
-  await page.getByRole('button', { name: ask ? /Ask your assistant/ : /TYPE AN UPDATE|Open text window/i }).first().click();
+  await page.getByRole('button', { name: ask ? /Ask Assistant/ : /Type Update/ }).first().click();
   const box = page.getByRole('textbox', { name: ask ? 'Your question' : 'What happened' });
   await box.fill(words);
   await page.getByRole('button', { name: ask ? 'Ask' : 'Review & record' }).click();

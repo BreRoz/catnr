@@ -118,13 +118,13 @@ export function describeMicError(code: string): string {
   switch (code) {
     case "not-allowed":
     case "service-not-allowed":
-      return "Microphone access is blocked. Allow the microphone for this site in your browser settings (the lock or ⓘ icon next to the address), then tap the microphone again. Or use Type an update.";
+      return "Microphone access is blocked. Allow the microphone for this site in your browser settings (the lock or ⓘ icon next to the address), then tap the microphone again. Or use Type Update.";
     case "audio-capture":
-      return "I can’t find a working microphone. Check that nothing else is using it, then tap the microphone again. Or use Type an update.";
+      return "I can’t find a working microphone. Check that nothing else is using it, then tap the microphone again. Or use Type Update.";
     case "network":
       return "Voice typing needs a connection and it dropped. What I heard so far is kept below. Tap the microphone to continue, or type the rest.";
     case "no-speech":
-      return "I didn’t hear anything. Tap the microphone and speak, or use Type an update.";
+      return "I didn’t hear anything. Tap the microphone and speak, or use Type Update.";
     case "aborted":
       return "";
     default:

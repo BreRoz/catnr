@@ -4,6 +4,16 @@ import { test, expect } from '@playwright/test';
 
 const base = `http://localhost:${Number(process.env.E2E_PORT || 3100) + 1}`;
 
+// The second app starts cold and Playwright only waits for the first one, so give this one time to answer properly
+// (a cold dev server can reply with a 5xx while it optimises dependencies). This waits for readiness; it never relaxes a check.
+test.beforeAll(async ({ request }) => {
+  for (let i = 0; i < 60; i++) {
+    const status = await request.get(base + '/api/assistant').then((r) => r.status(), () => 0);
+    if (status === 401) return;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+});
+
 test('without a valid sign-in token no page and no record is served', async ({ page, request }) => {
   const response = await page.goto(base + '/');
   expect(response.status()).toBe(401);
