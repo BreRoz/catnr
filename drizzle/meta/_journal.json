@@ -64,6 +64,13 @@
       "when": 1791338400000,
       "tag": "0008_everyday_records",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791342000000,
+      "tag": "0009_portability",
+      "breakpoints": true
     }
   ]
 }

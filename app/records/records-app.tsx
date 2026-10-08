@@ -2,12 +2,13 @@
 import { useState } from "react";
 import CatsPanel from "./cats-panel";
 import ColoniesPanel from "./colonies-panel";
+import DataPanel from "./data-panel";
 import DuplicatesPanel from "./duplicates-panel";
 import MoneyPanel from "./money-panel";
 import PeoplePanel from "./people-panel";
 import ReportsPanel from "./reports-panel";
 
-const SECTIONS = [["cats", "Cats"], ["colonies", "Colonies"], ["people", "People"], ["money", "Money"], ["reports", "Reports"], ["duplicates", "Duplicates"]] as const;
+const SECTIONS = [["cats", "Cats"], ["colonies", "Colonies"], ["people", "People"], ["money", "Money"], ["reports", "Reports"], ["duplicates", "Duplicates"], ["data", "My data"]] as const;
 type Section = (typeof SECTIONS)[number][0];
 
 /** Everyday record management without the assistant: add, find, edit, archive and merge. */
@@ -25,6 +26,7 @@ export default function RecordsApp() {
       {section === "money" && <MoneyPanel />}
       {section === "reports" && <ReportsPanel />}
       {section === "duplicates" && <DuplicatesPanel />}
+      {section === "data" && <DataPanel />}
     </section>
   );
 }

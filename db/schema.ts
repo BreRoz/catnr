@@ -284,3 +284,32 @@ export const duplicateDismissals = sqliteTable("duplicate_dismissals", {
   actorId: text("actor_id").notNull(),
   createdAt: text("created_at").notNull().default(nowIso),
 }, (t) => [primaryKey({ columns: [t.ownerId, t.recordType, t.firstId, t.secondId] })]);
+
+// Download log: when personal data left the app, in which form. Counts only, never content.
+export const dataExports = sqliteTable("data_exports", {
+  id: text("id").notNull().primaryKey(),
+  ownerId: text("owner_id").notNull(),
+  profile: text("profile").notNull(),
+  format: text("format").notNull(),
+  counts: text("counts").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(nowIso),
+});
+
+// A pending, cancellable request to delete the whole account.
+export const deletionRequests = sqliteTable("deletion_requests", {
+  ownerId: text("owner_id").notNull().primaryKey(),
+  requestedAt: text("requested_at").notNull(),
+  executeAfter: text("execute_after").notNull(),
+});
+
+// Exists only inside the one atomic batch that deletes an account; lets that batch pass the history guards.
+export const deletionInProgress = sqliteTable("deletion_in_progress", {
+  ownerId: text("owner_id").notNull().primaryKey(),
+});
+
+// Proof an account was deleted. No owner id, name or email: dates and row counts only.
+export const deletionReceipts = sqliteTable("deletion_receipts", {
+  id: text("id").notNull().primaryKey(),
+  completedAt: text("completed_at").notNull(),
+  counts: text("counts").notNull().default("{}"),
+});

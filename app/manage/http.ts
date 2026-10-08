@@ -15,6 +15,8 @@ const unauthorized = () => json({ message: "Sign in to access rescue records." }
 export interface Resource {
   read(db: D1, owner: string, url: URL, req: Request): Promise<unknown | Response>;
   write?(ctx: Ctx, body: Row, method: "POST" | "PATCH"): Promise<Write>;
+  /** Full control of a POST for actions that are not a plain record change (a dry run, a whole-account deletion). */
+  post?(db: D1, owner: string, body: Row, req: Request): Promise<unknown | Response>;
 }
 
 const MAX_BODY = 2_500_000;
@@ -60,12 +62,16 @@ export function serve(getDb: () => D1, resource: Resource) {
     }
   };
   const mutate = (method: "POST" | "PATCH") => guard(async (db, owner, req) => {
-    if (!resource.write) return json({ message: "Not supported." }, 405);
+    if (!resource.write && !resource.post) return json({ message: "Not supported." }, 405);
+    // A browser sends Origin on cross-site posts; refuse any that is not this site, whatever the body says.
+    const origin = req.headers.get("origin");
+    if (origin && origin !== new URL(req.url).origin) return json({ outcome: "rejected", message: "That request came from another site." }, 403);
     if (Number(req.headers.get("content-length") || 0) > MAX_BODY) return json({ outcome: "rejected", message: "That request is too large." }, 413);
     let body: unknown;
     try { body = await req.json(); } catch { return json({ outcome: "rejected", message: "Invalid request." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ outcome: "rejected", message: "Invalid request." }, 400);
-    return applyWrite(db, owner, body as Row, method, resource.write);
+    if (resource.post && method === "POST") { const result = await resource.post(db, owner, body as Row, req); return result instanceof Response ? result : json(result); }
+    return applyWrite(db, owner, body as Row, method, resource.write!);
   });
   return {
     GET: guard(async (db, owner, req) => {

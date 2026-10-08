@@ -5,6 +5,7 @@
 import { Miniflare } from 'miniflare';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
+import { loadTs } from './helpers/load-ts.mjs';
 
 const dir = new URL('../drizzle/', import.meta.url);
 const names = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
@@ -70,6 +71,23 @@ try {
   assert.equal((await f.prepare("SELECT current_status s FROM cats WHERE id='c'").first()).s, 'observed');
   assert.equal((await f.prepare("SELECT version FROM rescue_revisions WHERE owner_id='A'").first()).version, before.version);
 
+  // 4b. Stage 10: deleting a whole account is one atomic batch on D1 - audited history goes, other owners stay.
+  const account = (await loadTs('app/portability/account.ts')).resource;
+  await f.prepare(`INSERT INTO cats(id,owner_id,name,created_at,updated_at) VALUES('bc','B','Theirs','${T0}','${T0}')`).run();
+  await f.prepare(`INSERT INTO ai_inputs(id,owner_id,transcription,input_type,created_at) VALUES('ai','A','said','text','${T0}')`).run();
+  await account.post(f, 'A', { action: 'request' });
+  await f.prepare("UPDATE deletion_requests SET execute_after='2020-01-01T00:00:00.000Z'").run();
+  const rev = (await account.read(f, 'A')).revision;
+  await assert.rejects(account.post(f, 'A', { action: 'confirm', confirm: 'nope', revision: rev }), /exactly/);
+  assert.equal((await f.prepare("SELECT count(*) n FROM cats WHERE owner_id='A'").first()).n, 1, 'a refused confirmation deletes nothing');
+  const gone = await account.post(f, 'A', { action: 'confirm', confirm: 'DELETE MY RESCUE DATA', revision: rev });
+  assert.equal(gone.outcome, 'deleted');
+  for (const t of ['cats', 'events', 'colonies', 'merges', 'ai_inputs']) assert.equal((await f.prepare(`SELECT count(*) n FROM ${t} WHERE owner_id='A'`).first()).n, 0, t);
+  assert.equal((await f.prepare("SELECT count(*) n FROM owners WHERE id='A'").first()).n, 0);
+  assert.equal((await f.prepare("SELECT count(*) n FROM cats WHERE owner_id='B'").first()).n, 1);
+  assert.equal((await f.prepare('SELECT count(*) n FROM deletion_in_progress').first()).n, 0);
+  assert.equal((await f.prepare('PRAGMA foreign_key_check').all()).results.length, 0);
+
   // 5. A legacy half-cent aborts the whole migration batch and leaves the old schema intact.
   const bad = await newDb();
   try {
@@ -79,5 +97,5 @@ try {
     assert.equal((await bad.db.prepare("SELECT amount FROM transactions WHERE id='t'").first()).amount, 10.005);
     assert.equal((await bad.db.prepare("SELECT count(*) n FROM sqlite_master WHERE name='owners'").first()).n, 0);
   } finally { await bad.mf.dispose(); }
-  console.log(`Actual D1: ${names.length} migrations (upgrade + fresh), identical schema, foreign keys, exact money, atomic rollback passed`);
+  console.log(`Actual D1: ${names.length} migrations (upgrade + fresh), identical schema, foreign keys, exact money, atomic rollback and whole-account deletion passed`);
 } finally { await upgrade.mf.dispose(); await fresh.mf.dispose(); }

@@ -5,6 +5,8 @@
   "compatibility_date": "2026-05-22",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Daily retention clean-up (04:15 UTC): wipes finished question photos and old retry records.
+  "triggers": { "crons": ["15 4 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",

@@ -52,7 +52,7 @@ async function createEvent(ctx: Ctx, body: Row): Promise<Write> {
   const added: StatusEvent = { id, cat_id: catId, event_type: fields.event_type, occurred_at: fields.occurred_at, created_at: ctx.now };
   const implied = impliedStatus(fields.event_type);
   let status: string | null = null;
-  if (implied && derivedStatus([...before, added], catId) === implied && cat.current_status !== implied) status = implied;
+  if (!input.keepStatus && implied && derivedStatus([...before, added], catId) === implied && cat.current_status !== implied) status = implied;
   if (status) statements.push(...catStatusStatements(ctx, cat, status));
   return { statements, response: { outcome: "saved", id, statusChangedTo: status, message: status ? `Added. ${displayStatus(status)}.` : "Added to the cat’s history." } };
 }

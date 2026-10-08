@@ -11,7 +11,7 @@ import { moneyURL } from './helpers/money.mjs';
 const money = await import(moneyURL);
 const root = fileURLToPath(new URL('..', import.meta.url));
 const T0 = '2026-01-01T00:00:00.000Z';
-const OWNED = ['colonies', 'people', 'ai_inputs', 'cats', 'events', 'photos', 'transactions', 'write_requests', 'rescue_revisions', 'write_guards', 'corrections', 'proposed_actions', 'proposal_executions', 'clarifications', 'clarification_answers', 'clarification_resolutions', 'merges', 'record_changes', 'duplicate_dismissals'];
+const OWNED = ['colonies', 'people', 'ai_inputs', 'cats', 'events', 'photos', 'transactions', 'write_requests', 'rescue_revisions', 'write_guards', 'corrections', 'proposed_actions', 'proposal_executions', 'clarifications', 'clarification_answers', 'clarification_resolutions', 'merges', 'record_changes', 'duplicate_dismissals', 'data_exports', 'deletion_requests'];
 
 const open = () => { const db = new DatabaseSync(':memory:'); db.exec('PRAGMA foreign_keys=ON'); return db; };
 const fresh = () => { const db = open(); for (const sql of migrations) db.exec(sql); return db; };
@@ -28,11 +28,11 @@ const txn = (db, id, cols = '', vals = '') => db.exec(`INSERT INTO transactions(
 
 test('a new environment is created from migrations alone and is internally consistent', () => {
   const db = fresh();
-  assert.equal(migrationNames.at(-1), '0008_everyday_records.sql');
+  assert.equal(migrationNames.at(-1), '0009_portability.sql');
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   assert.deepEqual(db.prepare('PRAGMA integrity_check').all().map((r) => r.integrity_check), ['ok']);
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map((r) => r.name).sort();
-  assert.deepEqual(tables, ['owners', 'currencies', ...OWNED].sort());
+  assert.deepEqual(tables, ['owners', 'currencies', 'deletion_in_progress', 'deletion_receipts', ...OWNED].sort());
   assert.equal(tables.filter((n) => n.endsWith('__n')).length, 0, 'no leftover rebuild tables');
   db.close();
 });

@@ -2,6 +2,7 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { verifyAccessJwt } from "./access";
+import { purgeExpired } from "../app/portability/retention";
 
 interface Env {
   ASSETS: Fetcher;
@@ -82,4 +83,10 @@ const worker = {
   },
 };
 
-export default worker;
+export default {
+  ...worker,
+  // Daily: applies the two automatic retention rules (see app/portability/retention.ts).
+  async scheduled(_event: unknown, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(purgeExpired(env.DB));
+  },
+};

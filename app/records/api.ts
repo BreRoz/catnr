@@ -12,7 +12,7 @@ export const toQuery = (params: Params) => {
 };
 
 const TIMEOUT_MS = 30000;
-const WHAT: Record<string, string> = { cats: "cats", colonies: "colonies", people: "people", transactions: "money entries", events: "history", photos: "photos", reports: "the report", duplicates: "possible duplicates", merges: "that merge" };
+const WHAT: Record<string, string> = { cats: "cats", colonies: "colonies", people: "people", transactions: "money entries", events: "history", photos: "photos", reports: "the report", duplicates: "possible duplicates", merges: "that merge", account: "your account details", export: "your download options", import: "the import options" };
 
 /** Runs fetch with a time limit and maps every way it can go wrong to a plain-language ApiError. */
 async function request<T>(resource: string, init: RequestInit, kind: "read" | "write", action: string): Promise<T> {

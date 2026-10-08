@@ -26,6 +26,7 @@ This starter does not use `wrangler.jsonc`.
 - `drizzle/*.sql` are the only definition of the database; `db/schema.ts` is a typed description checked against them (see `docs/STAGE-6-SCHEMA.md`)
 - manual record management (no AI) lives in `app/manage/` (server), `app/api/manage/` (routes) and `app/records/` (UI); see `docs/STAGE-7-RECORDS.md`
 - every reported number is defined in one place, `app/reports/` (what it counts, what it does not, and the SQL); see `docs/STAGE-8-REPORTS.md`
+- export, import, whole-account deletion and data-retention rules live in `app/portability/` (the **My data** tab); see `docs/STAGE-10-PORTABILITY.md`
 - `examples/d1/` contains an optional D1 example surface
 
 ## Workspace Auth Headers
