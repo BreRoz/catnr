@@ -28,11 +28,11 @@ const txn = (db, id, cols = '', vals = '') => db.exec(`INSERT INTO transactions(
 
 test('a new environment is created from migrations alone and is internally consistent', () => {
   const db = fresh();
-  assert.equal(migrationNames.at(-1), '0009_portability.sql');
+  assert.equal(migrationNames.at(-1), '0010_operations.sql');
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   assert.deepEqual(db.prepare('PRAGMA integrity_check').all().map((r) => r.integrity_check), ['ok']);
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map((r) => r.name).sort();
-  assert.deepEqual(tables, ['owners', 'currencies', 'deletion_in_progress', 'deletion_receipts', ...OWNED].sort());
+  assert.deepEqual(tables, ['owners', 'currencies', 'deletion_in_progress', 'deletion_receipts', 'ops_events', 'ops_flags', ...OWNED].sort());
   assert.equal(tables.filter((n) => n.endsWith('__n')).length, 0, 'no leftover rebuild tables');
   db.close();
 });

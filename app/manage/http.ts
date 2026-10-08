@@ -1,4 +1,5 @@
 import { commit, digest, receipt, revision, writeFailure } from "../api/assistant/reliability";
+import { recordEvent } from "../ops/log";
 import { ManageError, makeCtx, type Ctx, type D1, type Row, type Write } from "./common";
 
 // Identity headers are set only by worker/index.ts after it verifies Cloudflare Access.
@@ -47,6 +48,7 @@ export async function applyWrite(db: D1, owner: string, body: Row, method: "POST
     try { const saved = await receipt(db, owner, key, hash); if (saved) return saved; } catch { /* keep the original failure */ }
     const known = DB_MESSAGES.find(([pattern]) => pattern.test(String(error)));
     if (known) return json({ outcome: "conflict", message: known[1] }, 409);
+    if (!String(error).includes("Concurrent edit")) await recordEvent(db, { kind: "db_error", owner, route: "/api/manage", detail: error });
     return writeFailure(error, attempted);
   }
 }
@@ -58,6 +60,7 @@ export function serve(getDb: () => D1, resource: Resource) {
     if (!owner) return unauthorized();
     try { return await fn(getDb(), owner, req); } catch (error) {
       if (error instanceof ManageError) return json({ outcome: error.outcome, message: error.message }, error.status);
+      await recordEvent(getDb(), { kind: "db_error", owner, route: new URL(req.url).pathname, detail: error });
       return json({ outcome: "retryable", message: "Something went wrong reading your records. Nothing was changed; try again." }, 503);
     }
   };

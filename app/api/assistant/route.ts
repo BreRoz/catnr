@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers";
 import { DEFAULT_CURRENCY, formatMoney, formatTotals, toMinorUnits } from "../../money";
 import { answerPrompt, candidatesFor, cancel as cancelClarification, listPending, loadForAnswer, queueClarification, queueResolved, queueStillAmbiguous, referencedCats, type Candidate } from "./clarifications";
 import { checkCorrectionPlan, checkUndo, listCorrections, queueCorrection, queueUndo } from "./corrections";
-import { pendingWrites, digest, receipt, revision, validatedPhoto, commit, writeFailure, providerFetch } from "./reliability";
+import { pendingWrites, digest, receipt, revision, validatedPhoto, commit, writeFailure, providerFetch, AiUnavailable, AiLimited } from "./reliability";
+import { recordEvent, finishEvent } from "../../ops/log";
+import { checkAi, photoRefusal } from "../../ops/limits";
 import { buildReport, reportSentences, surgeryStatus } from "../../reports/queries";
 import { yearPeriod } from "../../reports/definitions";
 import { PlanRejected, ambiguity, checkReferences, consequences, parseProviderJson, validateProviderPlan, TRANSACTION_TYPES, SEXES, AGE_CLASSES, PERSON_TYPES, CURRENCIES, type StoredCat } from "./validation";
@@ -41,8 +43,31 @@ const planSchema:any={type:"object",additionalProperties:false,required:["intent
 async function callAgent(input:string,mode:string,data:any,photo?:string):Promise<unknown>{
  const openRouterKey=(env as any).OPENROUTER_API_KEY as string|undefined,openAIKey=(env as any).OPENAI_API_KEY as string|undefined;if(!openRouterKey&&!openAIKey)return fallbackPlan(input,mode,data);
  const instructions=`You are Ari's careful cat TNR/rescue record assistant. Convert natural language into the provided action-plan schema. Today is ${now().slice(0,10)}. Use existing IDs only when clues strongly identify exactly one stored record. If multiple cats plausibly match for medical, adoption, disappearance, death, or disposition changes, return intent=clarify, a concise question, and no mutations. Never invent facts, names, amounts, dates, medical procedures, or relationships. Never infer surgery status: record surgery_needed only when told the cat still needs spay/neuter, previously_sterilized only when told it is already fixed (e.g. ear-tipped), and spay/neuter only for surgery that happened; if surgery history is not stated, record nothing about it. Preserve changing conditions as events; use cat fields for stable/current attributes. A single input may create multiple cats, events, people, and transactions. Give each new cat a temporary ref and point its events to that ref. For an existing cat use its stored ID as ref and existingId. For questions choose a query kind and exact cat ID when needed; never create records. For social requests draft only from stored facts. Normalize event types (first_seen, captured, intake, transport, vet_visit, spay, neuter, vaccination, testing, medication, surgery_needed, previously_sterilized, illness, injury, observation, foster, adoption_interest, application, meet_and_greet, adoption, returned_to_colony, lost, deceased, other). Allowed values (anything else is rejected): sex ${SEXES.join("/")}; ageClass ${AGE_CLASSES.join("/")}; transactionType ${TRANSACTION_TYPES.join("/")}; person type ${PERSON_TYPES.join("/")}; currency ${CURRENCIES.join("/")}; dates must be real ISO dates (YYYY-MM-DD) or null; amounts positive with at most two decimals. Never include fields outside the schema. For deleting, merging cats, or changing ownership, return intent=clarify (these are not supported). Valid statuses: ${[...statuses].join(", ")}.`;
- if(openRouterKey){const userContent:any[]= [{type:"text",text:`Mode: ${mode}\nUser input: ${input}\nStored records: ${JSON.stringify(data)}`}];if(photo)userContent.push({type:"image_url",image_url:{url:photo}});const response=await providerFetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${openRouterKey}`,"Content-Type":"application/json","HTTP-Referer":"https://github.com/BreRoz/catnr","X-OpenRouter-Title":"TNR Assistant"},body:JSON.stringify({model:(env as any).OPENROUTER_MODEL||"openai/gpt-5-mini",messages:[{role:"system",content:instructions},{role:"user",content:userContent}],response_format:{type:"json_schema",json_schema:{name:"rescue_action_plan",strict:true,schema:planSchema}},provider:{require_parameters:true}})},"OpenRouter");const result:any=await response.json();const text=result.choices?.[0]?.message?.content;return parseProviderJson(text)}
- const content:any[]=[{type:"input_text",text:`Mode: ${mode}\nUser input: ${input}\nStored records: ${JSON.stringify(data)}`}];if(photo)content.push({type:"input_image",image_url:photo,detail:"low"});const response=await providerFetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${openAIKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:(env as any).OPENAI_MODEL||"gpt-5-mini",instructions,input:[{role:"user",content}],text:{format:{type:"json_schema",name:"rescue_action_plan",strict:true,schema:planSchema}}})},"OpenAI");const result:any=await response.json();const text=result.output?.flatMap((x:any)=>x.content||[]).find((x:any)=>x.type==="output_text")?.text;return parseProviderJson(text);
+ if(openRouterKey){const userContent:Record<string,unknown>[]= [{type:"text",text:`Mode: ${mode}\nUser input: ${input}\nStored records: ${JSON.stringify(data)}`}];if(photo)userContent.push({type:"image_url",image_url:{url:photo}});const response=await providerFetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${openRouterKey}`,"Content-Type":"application/json","HTTP-Referer":"https://github.com/BreRoz/catnr","X-OpenRouter-Title":"TNR Assistant"},body:JSON.stringify({model:env.OPENROUTER_MODEL||"openai/gpt-5-mini",messages:[{role:"system",content:instructions},{role:"user",content:userContent}],response_format:{type:"json_schema",json_schema:{name:"rescue_action_plan",strict:true,schema:planSchema}},provider:{require_parameters:true}})},"OpenRouter");const result=await response.json() as {choices?:{message?:{content?:string}}[]};const text=result.choices?.[0]?.message?.content;return parseProviderJson(text)}
+ const content:Record<string,unknown>[]=[{type:"input_text",text:`Mode: ${mode}\nUser input: ${input}\nStored records: ${JSON.stringify(data)}`}];if(photo)content.push({type:"input_image",image_url:photo,detail:"low"});const response=await providerFetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${openAIKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:env.OPENAI_MODEL||"gpt-5-mini",instructions,input:[{role:"user",content}],text:{format:{type:"json_schema",name:"rescue_action_plan",strict:true,schema:planSchema}}})},"OpenAI");const result=await response.json() as {output?:{content?:{type:string;text?:string}[]}[]};const text=result.output?.flatMap(x=>x.content||[]).find(x=>x.type==="output_text")?.text;return parseProviderJson(text);
+}
+// Every provider call goes through here: it enforces the usage limits and the emergency switch, records the attempt
+// BEFORE calling (so a crash or a loop is still counted), and records how it ended. No rescue content is logged.
+async function monitoredAgent(db:D1,owner:string,input:string,mode:string,data:Parameters<typeof callAgent>[2],photo?:string):Promise<unknown>{
+ const vars=env as unknown as Record<string,string|undefined>,configured=!!(vars.OPENROUTER_API_KEY||vars.OPENAI_API_KEY);
+ const gate=await checkAi(db,owner,vars.AI_DISABLED);
+ if(!gate.ok){
+  await recordEvent(db,{kind:"limit_hit",owner,route:"/api/assistant",status:gate.status,detail:gate.detail});
+  // Switched off on purpose: behave exactly as when no provider is configured (simple text and questions still work).
+  if(gate.kind==="disabled")return fallbackPlan(input,mode,data);
+  throw new AiLimited(gate.message,gate.status);
+ }
+ if(!configured)return callAgent(input,mode,data,photo);
+ const id=await recordEvent(db,{kind:"ai_call",owner,route:"/api/assistant",detail:photo?"text+photo":"text"}),started=Date.now();
+ try{const plan=await callAgent(input,mode,data,photo);await finishEvent(db,id,Date.now()-started,200);return plan}
+ catch(error){
+  const unreachable=error instanceof AiUnavailable;
+  await finishEvent(db,id,Date.now()-started,unreachable?502:422);
+  // An answer that fails validation is recorded once, by the request's own error handler.
+  if(error instanceof PlanRejected)throw error;
+  await recordEvent(db,{kind:unreachable?"ai_failure":"ai_invalid",owner,route:"/api/assistant",durationMs:Date.now()-started,detail:error});
+  throw error;
+ }
 }
 function blank():AgentPlan{return{intent:"record",message:"Recorded your update.",clarification:null,confidence:.7,cats:[],events:[],people:[],transactions:[],query:{kind:"none",catId:null,status:null,year:null,search:null},socialDraft:null}}
 function fallbackPlan(input:string,mode:string,data:any):AgentPlan{const p=blank(),l=input.toLowerCase();if(mode==="ask"||/^(which|what|how many|show|give me|where)/i.test(input)){p.intent="query";if(/waiting for adoption|available for adoption/.test(l)){p.query.kind="cats_by_status";p.query.status="available for adoption";return p}if(/income|expenses|money came|money spent/.test(l)){p.query.kind="income_expenses";p.query.year=Number(l.match(/20\d{2}/)?.[0]||new Date().getUTCFullYear());return p}if(/how many cats|impact/.test(l)){p.query.kind="impact";p.query.year=Number(l.match(/20\d{2}/)?.[0]||new Date().getUTCFullYear());return p}if(/need.*(surgery|spay|neuter)/.test(l)){p.query.kind="cats_needing_surgery";return p}}
@@ -111,7 +136,8 @@ async function write(req:Request,patch:boolean){
    if(corr.version!==original.version)return Response.json({outcome:"conflict",message:"This activity changed. Refresh and review the latest version before correcting it."},{status:409});
   }else if(!confirmId&&!body.input?.trim()&&!body.photoDataUrl)return Response.json({message:"Tell me what happened or add a photo first."},{status:400});
   let photo:string|null;
-  try{photo=clarifyId?null:validatedPhoto(body.photoDataUrl)}catch(e){return Response.json({outcome:"rejected",message:(e as Error).message},{status:400})}
+  try{photo=clarifyId?null:validatedPhoto(body.photoDataUrl)}catch(e){await recordEvent(db,{kind:"upload_rejected",owner,route:"/api/assistant",status:400,detail:e});return Response.json({outcome:"rejected",message:(e as Error).message},{status:400})}
+  if(photo&&!clarifyId){const refusal=await photoRefusal(db,owner);if(refusal){await recordEvent(db,{kind:"limit_hit",owner,route:"/api/assistant",status:refusal.status,detail:refusal.detail});return Response.json({outcome:"rejected",message:refusal.message},{status:refusal.status})}}
   // The photo belongs to the pending question, not to this request.
   if(clar)photo=clar.photo_data;
   if(proposal&&proposal.photo_digest&&!photo){
@@ -131,7 +157,7 @@ async function write(req:Request,patch:boolean){
   if(await revision(db,owner)!==base)throw new Error("Concurrent edit");
   const statusSet=statuses,mode=corr?"correction":clar?clar.mode:body.mode||"text",agentInput=clar?answerPrompt(clar,clarCands,body.input.trim()):source;
   // A stored proposal is re-validated exactly like fresh provider output; it is never trusted because it was stored.
-  const interpreted=validateProviderPlan(proposal?JSON.parse(proposal.plan):await callAgent(agentInput,mode,data,photo||undefined),{statuses:statusSet,mode:clar?clar.mode:body.mode});
+  const interpreted=validateProviderPlan(proposal?JSON.parse(proposal.plan):await monitoredAgent(db,owner,agentInput,mode,data,photo||undefined),{statuses:statusSet,mode:clar?clar.mode:body.mode});
   await checkReferences(db,owner,interpreted);
   let plan=interpreted;
   // Identity is uncertain: ask, and change nothing.
@@ -204,7 +230,8 @@ async function write(req:Request,patch:boolean){
   await commit(db,owner,key,hash,base,pending.statements,response);
   return Response.json(response);
  }catch(error){
-  if(error instanceof PlanRejected)return rejectedPlan();
+  if(error instanceof PlanRejected){await recordEvent(db,{kind:"ai_invalid",owner,route:"/api/assistant",detail:"plan rejected by validation"});return rejectedPlan()}
+  if(!(error instanceof AiUnavailable||error instanceof AiLimited)&&!String(error).includes("Concurrent edit"))await recordEvent(db,{kind:"db_error",owner,route:"/api/assistant",detail:error});
   // A lost response or competing retry may have committed this same request.
   if(key&&hash)try{const saved=await receipt(db,owner,key,hash);if(saved)return saved}catch{/* The receipt lookup is unavailable; retain the retry key and input. */}
   return writeFailure(error,commitAttempted);

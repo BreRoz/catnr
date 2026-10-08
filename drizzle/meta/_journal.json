@@ -71,6 +71,13 @@
       "when": 1791342000000,
       "tag": "0009_portability",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791345600000,
+      "tag": "0010_operations",
+      "breakpoints": true
     }
   ]
 }

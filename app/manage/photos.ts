@@ -1,5 +1,7 @@
 import { validatedPhoto } from "../api/assistant/reliability";
 import { ManageError, all, dateValue, first, makeId, pageInfo, paging, recordId, text, type Ctx, type D1, type Row, type Write } from "./common";
+import { photoRefusal } from "../ops/limits";
+import { recordEvent } from "../ops/log";
 import { displayName, loadCat } from "./cats";
 
 // List queries never select storage_location: photos are stored inline, so a gallery page must not
@@ -60,7 +62,15 @@ export async function write(ctx: Ctx, body: Row, method: "POST" | "PATCH"): Prom
     if (eventId && !await first(ctx.db, "SELECT id FROM active_events WHERE id=? AND owner_id=? AND cat_id=?", eventId, ctx.owner, catId)) throw new ManageError("That history entry doesn’t belong to this cat.", 404);
     eventId ??= null;
     let dataUrl: string | null;
-    try { dataUrl = validatedPhoto(body.photoDataUrl); } catch (error) { throw new ManageError(error instanceof Error ? error.message : "That photo couldn’t be read."); }
+    try { dataUrl = validatedPhoto(body.photoDataUrl); } catch (error) {
+      await recordEvent(ctx.db, { kind: "upload_rejected", owner: ctx.owner, route: "/api/manage/photos", status: 400, detail: error });
+      throw new ManageError(error instanceof Error ? error.message : "That photo couldn’t be read.");
+    }
+    const refusal = await photoRefusal(ctx.db, ctx.owner);
+    if (refusal) {
+      await recordEvent(ctx.db, { kind: "limit_hit", owner: ctx.owner, route: "/api/manage/photos", status: refusal.status, detail: refusal.detail });
+      throw new ManageError(refusal.message, refusal.status);
+    }
     if (!dataUrl) throw new ManageError("Choose a photo to add.");
     const id = makeId("photo"), takenAt = dateValue(body.takenAt, "Date taken", false) ?? ctx.now, caption = text(body.caption, "Caption", 300);
     const row = { id, cat_id: catId, event_id: eventId, taken_at: takenAt, caption };

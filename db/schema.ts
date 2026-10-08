@@ -313,3 +313,22 @@ export const deletionReceipts = sqliteTable("deletion_receipts", {
   completedAt: text("completed_at").notNull(),
   counts: text("counts").notNull().default("{}"),
 });
+
+// Operational log and emergency switches (Stage 11). Not owner-scoped on purpose: no rescue content.
+export const opsEvents = sqliteTable("ops_events", {
+  id: text("id").notNull().primaryKey(),
+  at: text("at").notNull().default(nowIso),
+  kind: text("kind").notNull(),
+  ownerHash: text("owner_hash"),
+  route: text("route"),
+  status: integer("status"),
+  durationMs: integer("duration_ms"),
+  detail: text("detail"),
+});
+
+export const opsFlags = sqliteTable("ops_flags", {
+  name: text("name").notNull().primaryKey(),
+  enabled: integer("enabled").notNull(),
+  reason: text("reason"),
+  updatedAt: text("updated_at").notNull().default(nowIso),
+});

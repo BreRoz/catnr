@@ -8,6 +8,8 @@ export const CLARIFICATION_PHOTO_DAYS = 7;
 export const REPLAY_CACHE_DAYS = 30;
 /** How long a deletion request waits, and can be cancelled, before it can be carried out. */
 export const DELETION_WAIT_HOURS = 24;
+/** The operational log (errors, usage counts). It holds no rescue content and no email addresses. */
+export const OPS_LOG_DAYS = 90;
 
 export type RetentionRule = { id: string; what: string; keptFor: string; why: string; automatic: boolean };
 
@@ -20,6 +22,7 @@ export const RETENTION_RULES: RetentionRule[] = [
   { id: "removed", what: "Archived, removed, replaced and merged records", keptFor: "Until you delete your account", why: "They are hidden, never destroyed, so mistakes can be undone and old totals still explain themselves.", automatic: false },
   { id: "money", what: "Donations, purchases and other money records", keptFor: "Until you delete your account", why: "Download them before deleting. If the rescue is a registered charity, tax and grant rules may require you to keep financial records for several years.", automatic: false },
   { id: "retry", what: "Short-lived technical records that make a retry safe", keptFor: `${REPLAY_CACHE_DAYS} days`, why: "They only exist so a double tap or a dropped connection does not save something twice.", automatic: true },
+  { id: "ops", what: "Technical log of errors and assistant usage", keptFor: `${OPS_LOG_DAYS} days`, why: "It lets problems be diagnosed and keeps the assistant from running up costs. It contains no names, emails, or anything you said.", automatic: true },
   { id: "exports", what: "A log of when you downloaded your data", keptFor: "Until you delete your account", why: "It shows when personal information left the app. The downloaded files themselves are yours to look after.", automatic: false },
   { id: "receipt", what: "Proof that an account was deleted", keptFor: "Kept", why: "It holds only the date and how many records were removed. No names, emails or content.", automatic: false },
 ];
@@ -34,5 +37,6 @@ export async function purgeExpired(db: D1, now = new Date()) {
     `UPDATE clarifications SET photo_data=NULL WHERE photo_data IS NOT NULL AND
      ((status<>'pending' AND COALESCE(decided_at,updated_at)<?) OR (status='pending' AND expires_at<?))`).bind(photoCut, photoCut).run();
   const cache = await db.prepare("DELETE FROM write_requests WHERE created_at<?").bind(cacheCut).run();
-  return { clarificationPhotosWiped: changes(photos), retryRecordsRemoved: changes(cache) };
+  const ops = await db.prepare("DELETE FROM ops_events WHERE at<?").bind(daysAgo(now, OPS_LOG_DAYS)).run();
+  return { clarificationPhotosWiped: changes(photos), retryRecordsRemoved: changes(cache), opsEventsRemoved: changes(ops) };
 }

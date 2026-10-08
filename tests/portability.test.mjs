@@ -449,7 +449,7 @@ test('retention: finished question photos and old retry records are purged; noth
   assert.equal(api.db.prepare("SELECT original_text,question FROM clarifications WHERE id='old-answered'").get().question, 'q', 'the question and words are kept as history');
   assert.deepEqual([api.count('ai_inputs'), api.count('record_changes'), api.count('photos'), api.count('transactions')], [transcripts, audit, photos, money]);
   assert.equal(api.count('write_requests', "request_key='new'"), 1);
-  assert.deepEqual(await retention.purgeExpired(api.d1, at), { clarificationPhotosWiped: 0, retryRecordsRemoved: 0 }, 'safe to run again');
+  assert.deepEqual(await retention.purgeExpired(api.d1, at), { clarificationPhotosWiped: 0, retryRecordsRemoved: 0, opsEventsRemoved: 0 }, 'safe to run again');
   assert.throws(() => api.db.exec("UPDATE clarifications SET photo_data='data:image/png;base64,AAAA' WHERE id='recent-answered'"), /cannot be edited/, 'a photo can be wiped but never swapped');
 });
 

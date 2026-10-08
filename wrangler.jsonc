@@ -16,9 +16,25 @@
     }
   ],
   "vars": {
+    // Which deployment this is. /_ops/status shows it and scripts/verify-deploy.mjs checks it.
+    "ENVIRONMENT": "production",
     // Cloudflare Access settings. Every request must carry a valid Access
     // token for this team and application, or the worker refuses it.
     "ACCESS_TEAM_DOMAIN": "morning-dream-e9b3.cloudflareaccess.com",
     "ACCESS_AUD": "115de8739c1c2e1df3adc720707a1c6bc4832797515f2e1e7174700354b313e8"
+  },
+  // Staging: a separate worker with its own empty database and no AI key, so experiments never touch
+  // real records or cost real money. It stays closed (503) until its own Access application is created
+  // and its ACCESS_* values are filled in. Build and deploy it with `npm run deploy:staging`.
+  "env": {
+    "staging": {
+      "name": "catnr-staging",
+      "triggers": { "crons": [] },
+      "observability": { "enabled": true },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "catnr-staging-db", "database_id": "7b9a4912-c5bc-4b3a-8351-058436838640", "migrations_dir": "drizzle" }
+      ],
+      "vars": { "ENVIRONMENT": "staging", "ACCESS_TEAM_DOMAIN": "", "ACCESS_AUD": "" }
+    }
   }
 }

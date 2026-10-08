@@ -11,6 +11,7 @@ import { write as writeColony } from "../manage/colonies";
 import { write as writeEvent } from "../manage/events";
 import { write as writePerson } from "../manage/people";
 import { write as writeTransaction } from "../manage/transactions";
+import { flagOn } from "../ops/limits";
 import { CsvError, parseCsv, toCsv } from "./csv";
 
 export const IMPORT_KINDS = ["cats", "colonies", "people", "events", "transactions"] as const;
@@ -248,6 +249,7 @@ const guide = () => ({
 export const resource: Resource = {
   read: async () => guide(),
   async post(db, owner, body) {
+    if (body.mode === "commit" && !await flagOn(db, "imports")) throw new ManageError("Importing is switched off for now. Nothing was imported.", 503, "rejected");
     if (body.mode === "preview") {
       const { report } = await planImport(makeCtx(db, owner), body);
       return { outcome: "preview", ...report };

@@ -27,6 +27,7 @@ This starter does not use `wrangler.jsonc`.
 - manual record management (no AI) lives in `app/manage/` (server), `app/api/manage/` (routes) and `app/records/` (UI); see `docs/STAGE-7-RECORDS.md`
 - every reported number is defined in one place, `app/reports/` (what it counts, what it does not, and the SQL); see `docs/STAGE-8-REPORTS.md`
 - export, import, whole-account deletion and data-retention rules live in `app/portability/` (the **My data** tab); see `docs/STAGE-10-PORTABILITY.md`
+- deployment checks, monitoring, usage limits, backups, restore and rollback live in `app/ops/` and `scripts/`; see `docs/RUNBOOK.md` and `docs/STAGE-11-OPERATIONS.md`
 - `examples/d1/` contains an optional D1 example surface
 
 ## Workspace Auth Headers
@@ -96,6 +97,7 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - `npm test`: build the starter and verify its rendered loading skeleton
 - `npm run db:migrate:local`: apply pending migrations to the local development database
 - `npm run db:reset:local`: bring a local database that predates migrations in line (backs it up first)
+- `npm run deploy` / `npm run deploy:staging`: guarded releases; `npm run verify`, `npm run ops:report`, `npm run backup`, `npm run flag` (see the runbook)
 - `npm run db:migrate`: apply pending migrations to the production D1 database (run before `npm run deploy`)
 - `npm run test:d1`: run the migrations on the real D1 engine (Miniflare) and check upgrade, constraints and rollback
 - Schema changes are hand-written migrations in `drizzle/` (plus a `drizzle/meta/_journal.json` entry); do not use `drizzle-kit generate`
