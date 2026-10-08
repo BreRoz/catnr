@@ -17,6 +17,22 @@ type Row = { id: string; kind: string; title: string; detail: string; createdAt:
 const EMPTY_STATS: LifetimeStats = { catsRecorded: 0, catsFoundHomes: 0, spayedNeutered: 0, vaccinated: 0, cashInText: "$0.00", cashOutText: "$0.00" };
 const TABS = [["home", "⌂", "Home"], ["cats", "♧", "Cats"], ["activity", "◎", "Activity"], ["dashboard", "▥", "Dashboard"], ["records", "☰", "Records"]] as const;
 
+function TodayCalendar() {
+  const [today, setToday] = useState<Date | null>(null);
+  useEffect(() => {
+    const tick = () => setToday(new Date());
+    tick();
+    const timer = setInterval(tick, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <div className="todayCal" role="img" aria-label={today ? today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) : "Today"}>
+      <span className="todayCalDay">{today ? today.toLocaleDateString(undefined, { weekday: "long" }) : ""}</span>
+      <span className="todayCalNum">{today ? today.getDate() : ""}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const [tab, setTab] = useState("home");
   const [capture, setCapture] = useState<Pick<Draft, "mode" | "text" | "photo"> | null>(null);
@@ -93,7 +109,7 @@ export default function Home() {
         <>
           <section className="hero">
             <img className="peekCat" src="/tnr-cat-peeking.png" alt="" />
-            <div className="colonyBadge"><img src="/cat-colony.png" alt="" /></div>
+            <TodayCalendar />
             <div className="heroCopy"><p className="eyebrow light">THE FULL STORY OF YOUR RESCUE WORK.</p><h2>What happened today?</h2><p>Tell me naturally. I’ll organize the details and ask only when I’m unsure.</p></div>
             <div className="recordActions">
               <button type="button" className="talk" onClick={() => openCapture("mic")}><span className="mic" aria-hidden="true">●</span><span className="actionCopy"><b>SPEAK AN UPDATE</b><small>Open microphone</small></span></button>

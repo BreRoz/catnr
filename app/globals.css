@@ -85,3 +85,9 @@ button:disabled{cursor:not-allowed}
 .dataCard.danger{border-color:#e5b8b0;background:#fffaf8}.dangerButton{background:#b3392a}
 .recSelect,.recForm select{appearance:none;-webkit-appearance:none;padding-right:34px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23244a3f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center}
 .recFilters .recSelect{padding-right:32px;background-position:right 12px center}
+.todayCal{position:absolute;z-index:3;top:-18px;right:16px;width:76px;height:76px;border-radius:13px;background:#fff;border:3px solid #1b1b1b;box-shadow:0 4px 14px #0d2c2355;overflow:hidden;display:flex;flex-direction:column;text-align:center}
+.todayCal:before,.todayCal:after{content:"";position:absolute;top:-4px;width:6px;height:14px;border-radius:3px;background:#1b1b1b;border:2px solid #fff}
+.todayCal:before{left:20px}.todayCal:after{right:20px}
+.todayCalDay{background:var(--coral);color:#1b1b1b;font:700 12px Arial,Helvetica,sans-serif;padding:10px 0 3px;line-height:1.1;white-space:nowrap;overflow:hidden}
+.todayCalNum{flex:1;display:grid;place-items:center;color:#1b1b1b;font:400 36px Arial,Helvetica,sans-serif;line-height:1}
+.hero .heroCopy .eyebrow{max-width:240px}
