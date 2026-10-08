@@ -20,8 +20,6 @@ export default function ImpactSummary({ stats }: { stats: LifetimeStats }) {
           <Stat value={stats.catsRecorded} label="Cats recorded" />
           <Stat value={stats.catsFoundHomes} label="Found homes" />
           <Stat value={stats.spayedNeutered} label="Spayed/neutered" />
-        </div>
-        <div className="stats second">
           <Stat value={stats.vaccinated} label="Vaccinated" />
           <Stat value={stats.cashInText} label="Cash received" />
           <Stat value={stats.cashOutText} label="Cash spent" />

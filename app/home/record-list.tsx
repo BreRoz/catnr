@@ -1,4 +1,9 @@
-import type { Row } from "./types";
+import type { CatGroup, Row } from "./types";
+
+const CAT_GROUPS: [CatGroup, string][] = [
+  ["current", "Current cats"],
+  ["adopted", "Adopted cats"],
+];
 
 const iconClass = (kind: string) => (kind === "income" || kind === "in-kind" ? "green" : kind === "expense" ? "coral" : "blue");
 
@@ -13,13 +18,17 @@ function RowIcon({ item }: { item: Row }) {
 type Props = {
   tab: "cats" | "activity";
   rows: Row[];
+  /** Cats tab only: which group is showing, how many cats are in each, and how to switch. */
+  catGroup: CatGroup;
+  catCounts: Record<CatGroup, number>;
+  onCatGroup: (group: CatGroup) => void;
   loading: boolean;
   onOpenCat: (id: string) => void;
   onEdit: (row: Row) => void;
 };
 
 /** The Cats and Activity tabs: one tappable button per line (a cat opens its history; an entry opens for correction). */
-export default function RecordList({ tab, rows, loading, onOpenCat, onEdit }: Props) {
+export default function RecordList({ tab, rows, catGroup, catCounts, onCatGroup, loading, onOpenCat, onEdit }: Props) {
   return (
     <section className="recent">
       <div className="sectionTitle">
@@ -29,6 +38,22 @@ export default function RecordList({ tab, rows, loading, onOpenCat, onEdit }: Pr
         </div>
         {tab === "activity" && <span className="editHint">Tap an entry to correct it</span>}
       </div>
+      {tab === "cats" && (
+        <div className="recTabs" role="tablist" aria-label="Cats">
+          {CAT_GROUPS.map(([group, label]) => (
+            <button
+              key={group}
+              type="button"
+              role="tab"
+              aria-selected={catGroup === group}
+              className={catGroup === group ? "active" : ""}
+              onClick={() => onCatGroup(group)}
+            >
+              {label} ({catCounts[group]})
+            </button>
+          ))}
+        </div>
+      )}
       <div className="memoryList">
         {rows.slice(0, 50).map((item) => (
           <button
@@ -52,7 +77,11 @@ export default function RecordList({ tab, rows, loading, onOpenCat, onEdit }: Pr
         {!rows.length && !loading && (
           <div className="empty">
             {tab === "cats"
-              ? "No cats yet. Tell the assistant about a cat, or add one under Records."
+              ? catGroup === "adopted"
+                ? "No adopted cats yet."
+                : catCounts.adopted
+                  ? "No current cats."
+                  : "No cats yet. Tell the assistant about a cat, or add one under Records."
               : "Your first memory will appear here."}
           </div>
         )}

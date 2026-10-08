@@ -19,8 +19,7 @@ function Hero({ onOpen }: { onOpen: (mode: CaptureMode) => void }) {
             ●
           </span>
           <span className="actionCopy">
-            <b>SPEAK AN UPDATE</b>
-            <small>Open microphone</small>
+            <b>Record Update</b>
           </span>
         </button>
         <button type="button" className="typeUpdate" onClick={() => onOpen("text")}>
@@ -28,8 +27,7 @@ function Hero({ onOpen }: { onOpen: (mode: CaptureMode) => void }) {
             Aa
           </span>
           <span>
-            <strong>Type an update</strong>
-            <small>Open text window</small>
+            <strong>Type Update</strong>
           </span>
         </button>
       </div>
@@ -58,28 +56,13 @@ export function UnsentUpdate({ draft, onContinue, onDiscard }: { draft: Draft; o
   );
 }
 
-function QuickAction({
-  icon,
-  tone,
-  title,
-  hint,
-  onClick,
-}: {
-  icon: string;
-  tone: string;
-  title: string;
-  hint: string;
-  onClick: () => void;
-}) {
+function QuickAction({ icon, tone, title, onClick }: { icon: string; tone: string; title: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}>
       <span className={`actionIcon ${tone}`} aria-hidden="true">
         {icon}
       </span>
-      <span>
-        <strong>{title}</strong>
-        <small>{hint}</small>
-      </span>
+      <strong>{title}</strong>
       <b aria-hidden="true">›</b>
     </button>
   );
@@ -88,8 +71,8 @@ function QuickAction({
 export function QuickActions({ onOpen }: { onOpen: (mode: CaptureMode) => void }) {
   return (
     <section className="quickGrid">
-      <QuickAction icon="▣" tone="photo" title="Add photo" hint="Document a cat" onClick={() => onOpen("photo")} />
-      <QuickAction icon="?" tone="ask" title="Ask your assistant" hint="Query your records" onClick={() => onOpen("ask")} />
+      <QuickAction icon="▣" tone="photo" title="Add Photo" onClick={() => onOpen("photo")} />
+      <QuickAction icon="?" tone="ask" title="Ask Assistant" onClick={() => onOpen("ask")} />
     </section>
   );
 }

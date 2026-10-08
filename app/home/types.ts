@@ -49,3 +49,7 @@ export const TABS = [
   ["dashboard", "▥", "Dashboard"],
   ["records", "☰", "Records"],
 ] as const;
+
+/** The Cats tab shows cats still in the rescue's story ("current") apart from those who found homes ("adopted"). */
+export type CatGroup = "current" | "adopted";
+export const catGroupOf = (status: string): CatGroup => (status === "adopted" ? "adopted" : "current");

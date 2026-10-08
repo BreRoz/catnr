@@ -207,3 +207,15 @@ test('failed saves never close the sheet or clear the input', async () => {
   assert.ok(submit.indexOf('if (!result.ok) { setReply(result.reply); return; }') < submit.indexOf('done('), 'failure returns before done()');
   assert.doesNotMatch(submit.slice(0, submit.indexOf('done(')), /setText\(|setPhoto\(/);
 });
+
+test('the Cats tab keeps adopted cats apart from current ones; every other status counts as current', async () => {
+  const { catGroupOf } = await loadTs('app/home/types.ts');
+  assert.equal(catGroupOf('adopted'), 'adopted');
+  for (const status of ['observed', 'foster', 'available for adoption', 'adoption pending', 'returned to colony', 'lost', 'deceased']) {
+    assert.equal(catGroupOf(status), 'current', status);
+  }
+  const list = await src('app/home/record-list.tsx');
+  assert.match(list, /Current cats/);
+  assert.match(list, /Adopted cats/);
+  assert.match(list, /role="tablist"/);
+});

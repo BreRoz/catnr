@@ -12,7 +12,7 @@ import Hero, { QuickActions, UnsentUpdate } from "./home/home-screen";
 import ImpactSummary from "./home/impact-summary";
 import MainNav from "./home/main-nav";
 import RecordList from "./home/record-list";
-import { EMPTY_STATS, type Banner, type Cat, type LifetimeStats, type Row } from "./home/types";
+import { EMPTY_STATS, catGroupOf, type Banner, type Cat, type CatGroup, type LifetimeStats, type Row } from "./home/types";
 import RecordsApp from "./records/records-app";
 
 /** One id per browser tab, so a question and its answer can be tied together. */
@@ -29,6 +29,7 @@ function newSessionId() {
 
 export default function Home() {
   const [tab, setTab] = useState("home");
+  const [catGroup, setCatGroup] = useState<CatGroup>("current");
   const [capture, setCapture] = useState<Pick<Draft, "mode" | "text" | "photo"> | null>(null);
   const [savedDraft, setSavedDraft] = useState<Draft | null>(null);
   const [toast, setToast] = useState("");
@@ -104,16 +105,22 @@ export default function Home() {
     void refresh();
   };
 
+  const catCounts = {
+    current: cats.filter((c) => catGroupOf(c.status) === "current").length,
+    adopted: cats.filter((c) => catGroupOf(c.status) === "adopted").length,
+  };
   const rows: Row[] =
     tab === "cats"
-      ? cats.map((c) => ({
-          id: c.id,
-          kind: "cat",
-          title: c.displayName,
-          detail: `${c.description} · ${c.status}`,
-          createdAt: `${c.events} events`,
-          photoId: c.photoId,
-        }))
+      ? cats
+          .filter((c) => catGroupOf(c.status) === catGroup)
+          .map((c) => ({
+            id: c.id,
+            kind: "cat",
+            title: c.displayName,
+            detail: `${c.description} · ${c.status}`,
+            createdAt: `${c.events} events`,
+            photoId: c.photoId,
+          }))
       : memories.map((m) => {
           const memory = { ...m, title: formatActivityDate(m.createdAt), detail: `${m.title}${m.detail ? ` — ${m.detail}` : ""}` };
           return { ...memory, memory };
@@ -158,6 +165,9 @@ export default function Home() {
         <RecordList
           tab={tab === "cats" ? "cats" : "activity"}
           rows={rows}
+          catGroup={catGroup}
+          catCounts={catCounts}
+          onCatGroup={setCatGroup}
           loading={!!loading}
           onOpenCat={(id) => void openCat(id)}
           onEdit={(row) => setEditing(row.memory!)}
