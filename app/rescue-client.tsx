@@ -123,7 +123,7 @@ export default function Home() {
     <main className="shell">
       <header className="topbar">
         <div className="topbarTitle">
-          <p className="eyebrow">GOOD MORNING, ARI</p>
+          <p className="eyebrow">HELLO, ARI</p>
           <h1>TNR Assistant</h1>
         </div>
         <span className="avatar" aria-hidden="true">
