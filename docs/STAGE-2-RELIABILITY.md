@@ -2,7 +2,7 @@
 
 ## Write-path audit
 
-All active rescue mutations originate in `app/api/assistant/route.ts` POST and PATCH. There are no direct client database writes. `examples/d1/` is an unused starter example, not a rescue API.
+All active rescue mutations originate in the assistant API (`app/api/assistant/route.ts` → `write.ts` for POST and PATCH). There are no direct client database writes.
 
 | Operation | Atomic records |
 | --- | --- |
