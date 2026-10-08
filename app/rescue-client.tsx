@@ -60,7 +60,8 @@ export default function Home() {
     setBanner(null);
     setCapture({ mode, text: keep?.text || prefill, photo: keep?.photo ?? null });
   };
-  const closeCapture = () => { setCapture(null); setSavedDraft(drafts.load()); };
+  // Re-read after closing: the update may have just been queued as a question that now needs showing.
+  const closeCapture = () => { setCapture(null); setSavedDraft(drafts.load()); void refresh(); };
   const discardDraft = () => { if (confirmDiscard()) { drafts.clear(); setSavedDraft(null); } };
   const saved = (message: string) => { setCapture(null); setEditing(null); setSavedDraft(null); setTab("home"); say(message); void refresh(); };
 

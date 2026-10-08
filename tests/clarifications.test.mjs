@@ -39,7 +39,7 @@ function setup(){
   ('ink','A',NULL,'thin black kitten from Jefferson','foster','${T0}','${T0}'),('shade','A',NULL,'chunky black kitten from Jefferson','foster','${T0}','${T0}'),
   ('milo','A','Milo',NULL,'foster','${T0}','${T0}'),('luna','A','Luna',NULL,'foster','${T0}','${T0}'),('bcat','B','Secret',NULL,'foster','${T0}','${T0}')`);
  const state={raw:base(),prompts:[]};
- env.DB={prepare(query){let values=[];return{bind(...x){values=x.map(y=>y===undefined?null:y);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return{results:db.prepare(query).all(...values)}},async run(){return db.prepare(query).run(...values)}}},async batch(statements){db.exec('BEGIN');try{for(const s of statements)await s.run();db.exec('COMMIT')}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}}};
+ env.DB={prepare(query){let values=[];return{bind(...x){values=x.map(y=>y===undefined?null:y);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return{results:db.prepare(query).all(...values)}},async run(){const r=db.prepare(query).run(...values);return {...r,meta:{changes:Number(r.changes)}}}}},async batch(statements){db.exec('BEGIN');try{for(const s of statements)await s.run();db.exec('COMMIT')}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}}};
  env.OPENROUTER_API_KEY='test';
  globalThis.fetch=async(_u,init)=>{state.prompts.push(JSON.parse(init.body).messages[1].content[0].text);return Response.json({choices:[{message:{content:JSON.stringify(state.raw)}}]})};
  const records=()=>JSON.stringify(['cats','people','colonies','events','transactions','photos'].map(t=>db.prepare(`SELECT * FROM ${t} ORDER BY id`).all()));
@@ -72,7 +72,7 @@ test('one pending clarification keeps the original update and resolves from a sh
 });
 
 test('a non-consequential answer applies the original update immediately and exactly once',async()=>{
- const {db,state,ask,cell}=setup();
+ const {db,ask,cell}=setup();
  const first=await ask(unsurePlan('neuter'),{input:'The black kitten got neutered.',requestKey:'k1'});
  const done=await ask(answerPlan('neuter','shade'),{clarificationId:first.body.clarificationId,input:'the chunky one',requestKey:'a1'});
  assert.equal(done.body.outcome,'committed');assert.equal(cell("SELECT count(*) n FROM events WHERE event_type='neuter' AND cat_id='shade'").n,1);assert.equal(cell("SELECT count(*) n FROM events WHERE cat_id='ink'").n,0);
@@ -83,7 +83,7 @@ test('a non-consequential answer applies the original update immediately and exa
 });
 
 test('multiple pending clarifications stay separate and an answer only resolves the one it is addressed to',async()=>{
- const {db,state,records,ask,cell}=setup();
+ const {db,records,ask,cell}=setup();
  const a=(await ask(unsurePlan('neuter'),{input:'The black kitten got neutered.',requestKey:'ka'})).body.clarificationId;
  const b=(await ask(unsurePlan('spay',['milo','luna'],'milo'),{input:'She got spayed.',requestKey:'kb'})).body.clarificationId;
  assert.ok(a&&b&&a!==b);assert.equal((await (await get('clarifications=1')).json()).clarifications.length,2);

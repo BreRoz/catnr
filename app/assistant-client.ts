@@ -19,7 +19,7 @@ async function run(url: string, init: RequestInit, o: Options): Promise<CallResu
   } catch (e) {
     return fail(describeFailure({ ...o, network: true, timedOut: e instanceof DOMException && e.name === "TimeoutError" }), undefined);
   }
-  const data = await response.json().catch(() => null);
+  const data = (await response.json().catch(() => null)) as (Reply & { outcome?: string; message?: string }) | null;
   if (response.ok && data) return { ok: true, data };
   return fail(describeFailure({ ...o, status: response.status, outcome: data?.outcome, message: data?.message, unreadable: !data }), data?.outcome);
 }

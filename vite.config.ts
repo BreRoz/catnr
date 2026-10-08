@@ -22,6 +22,8 @@ export default defineConfig(async () => {
       vinext(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        // Browser tests keep their throwaway database somewhere else so they never touch real local data.
+        ...(process.env.E2E_STATE_DIR ? { persistState: { path: process.env.E2E_STATE_DIR } } : {}),
       }),
     ],
   };

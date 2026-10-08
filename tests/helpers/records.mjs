@@ -24,7 +24,7 @@ export function makeD1(db, hooks = {}) {
         bind(...v) { values = v.map((x) => (x === undefined ? null : x)); return stmt; },
         async first() { return db.prepare(query).get(...values) ?? null; },
         async all() { return { results: db.prepare(query).all(...values) }; },
-        async run() { if (hooks.fail?.(query)) throw new Error('Injected database failure'); return db.prepare(query).run(...values); },
+        async run() { if (hooks.fail?.(query)) throw new Error('Injected database failure'); const r = db.prepare(query).run(...values); return { ...r, meta: { changes: Number(r.changes) } }; },
       };
       return stmt;
     },

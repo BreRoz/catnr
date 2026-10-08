@@ -61,7 +61,7 @@ export default function CaptureSheet({ initial, sessionId, onClose, onSaved }: P
   }, [busy]);
 
   // Save the draft before the parent re-reads it: the unmount cleanup below runs too late for that.
-  const closeKeepingDraft = () => { stopMic(); if (latest.current.mode !== "ask") drafts.save(latest.current); onClose(); };
+  const closeKeepingDraft = () => { stopMic(); if (!finished.current && latest.current.mode !== "ask") drafts.save(latest.current); onClose(); };
   const done = useCallback((toast: string) => { finished.current = true; drafts.clear(); onSaved(toast); }, [onSaved]);
 
   const startMic = () => {
@@ -115,7 +115,11 @@ export default function CaptureSheet({ initial, sessionId, onClose, onSaved }: P
     const d = result.data;
     const changed = (d.created?.length || 0) + (d.updated?.length || 0);
     if (changed && mode !== "ask" && !d.clarification) done("Records added");
-    else setReply(d);
+    else {
+      // A question the server has stored keeps Ari's words safely on its side; the phone's copy is no longer an unsent update.
+      if (d.clarification && d.clarificationId) { finished.current = true; drafts.clear(); }
+      setReply(d);
+    }
   };
 
   const confirm = async () => {

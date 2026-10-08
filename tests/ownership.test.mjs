@@ -20,7 +20,7 @@ const js=ts.transpileModule(linkMoney(source).replace('from "./validation"',`fro
 const db=new DatabaseSync(':memory:');db.exec(sql[0]);db.exec(sql[1]);
 db.exec("INSERT INTO cats(id,name,created_at,updated_at) VALUES('legacy','Legacy','now','now'); INSERT INTO people(id,owner_id,name,created_at) VALUES('local','local-owner','Legacy person','now')");
 for(const migration of sql.slice(2))db.exec(migration);
-const binding={async batch(statements){db.exec('BEGIN');try{const r=[];for(const statement of statements)r.push(await statement.run());db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}},prepare(query){let values=[];return {bind(...v){values=v.map(x=>x===undefined?null:x);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return {results:db.prepare(query).all(...values)}},async run(){return db.prepare(query).run(...values)}}}};
+const binding={async batch(statements){db.exec('BEGIN');try{const r=[];for(const statement of statements)r.push(await statement.run());db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}},prepare(query){let values=[];return {bind(...v){values=v.map(x=>x===undefined?null:x);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return {results:db.prepare(query).all(...values)}},async run(){const r=db.prepare(query).run(...values);return {...r,meta:{changes:Number(r.changes)}}}}}};
 let photoReads=0;
 globalThis.__ownershipEnv={DB:binding,PHOTOS:{async get(){photoReads++;return {body:'photo',httpMetadata:{contentType:'image/jpeg'}}}}};
 const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);

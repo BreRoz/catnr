@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "worker-configuration.d.ts",
   ]),
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
@@ -29,6 +30,11 @@ const eslintConfig = defineConfig([
         ...globals.node,
         ...globals.serviceworker,
       },
+    },
+    rules: {
+      // Photos come from the authenticated /api/assistant endpoint (and are tiny phone thumbnails); next/image's
+      // optimizer does not run on Workers, so plain <img> is the correct element here.
+      "@next/next/no-img-element": "off",
     },
     settings: {
       react: {

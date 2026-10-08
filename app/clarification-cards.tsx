@@ -15,9 +15,9 @@ export default function ClarificationCards({ items, sessionId, onChanged }: { it
   setBusy(item.id);
   try {
    const r = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clarificationId: item.id, input: text, sessionId, requestKey: `clarify-${item.id}-${text}` }) });
-   const data = await r.json();
+   const data = (await r.json()) as { clarification?: unknown; outcome?: string; message?: string };
    if (r.ok && !data.clarification) setAnswers(a => ({ ...a, [item.id]: "" }));
-   if (!r.ok || data.clarification || data.outcome === "needs_confirmation") note(item.id, data.message);
+   if (!r.ok || data.clarification || data.outcome === "needs_confirmation") note(item.id, data.message ?? "That did not save. Please try again.");
    await onChanged();
   } catch {
    note(item.id, "The connection failed, so I can’t confirm whether that saved. Tap Send again to check safely.");

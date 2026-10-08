@@ -41,3 +41,8 @@ yarn-error.log*
 *.tsbuildinfo
 backups/
 .dev.vars
+/worker-configuration.d.ts
+.dev.vars.*
+/test-results/
+/playwright-report/
+/.wrangler-e2e/

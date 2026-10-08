@@ -95,6 +95,7 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
 - `npm test`: build the starter and verify its rendered loading skeleton
+- `npm run lint`, `npm run typecheck`, `npm run migrations:check`, `npm test`, `npm run test:d1`, `npm run test:e2e`: the checks CI runs; `npm run ci` runs them all. See `docs/STAGE-12-TESTING.md` (including manual phone tests)
 - `npm run db:migrate:local`: apply pending migrations to the local development database
 - `npm run db:reset:local`: bring a local database that predates migrations in line (backs it up first)
 - `npm run deploy` / `npm run deploy:staging`: guarded releases; `npm run verify`, `npm run ops:report`, `npm run backup`, `npm run flag` (see the runbook)

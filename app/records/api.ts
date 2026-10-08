@@ -23,7 +23,7 @@ async function request<T>(resource: string, init: RequestInit, kind: "read" | "w
     const f = describeFailure({ action, kind, network: true, timedOut: e instanceof DOMException && e.name === "TimeoutError" });
     throw new ApiError(f.message, 0, f.saved === "unknown" ? "uncertain" : "network");
   }
-  const data = await response.json().catch(() => null);
+  const data = (await response.json().catch(() => null)) as { outcome?: string; message?: string } | null;
   if (!response.ok || data === null) {
     const f = describeFailure({ action, kind, status: response.status, outcome: data?.outcome, message: data?.message, unreadable: data === null && response.ok });
     throw new ApiError(f.message, response.status, data?.outcome);

@@ -34,7 +34,7 @@ function setup(){
  const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const sql of migrations)db.exec(sql);
  db.exec(`INSERT INTO cats(id,owner_id,name,current_status,created_at,updated_at) VALUES('milo','A','Milo','foster','${T0}','${T0}'),('luna','A','Luna','foster','${T0}','${T0}'),('bcat','B','Secret','foster','${T0}','${T0}')`);
  const state={calls:0,raw:base()};
- env.DB={prepare(query){let values=[];return{bind(...x){values=x.map(y=>y===undefined?null:y);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return{results:db.prepare(query).all(...values)}},async run(){return db.prepare(query).run(...values)}}},async batch(statements){db.exec('BEGIN');try{for(const s of statements)await s.run();db.exec('COMMIT')}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}}};
+ env.DB={prepare(query){let values=[];return{bind(...x){values=x.map(y=>y===undefined?null:y);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return{results:db.prepare(query).all(...values)}},async run(){const r=db.prepare(query).run(...values);return {...r,meta:{changes:Number(r.changes)}}}}},async batch(statements){db.exec('BEGIN');try{for(const s of statements)await s.run();db.exec('COMMIT')}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}}};
  env.OPENROUTER_API_KEY='test';
  // `content` is exactly what the provider returned; it may be any string, valid JSON or not.
  globalThis.fetch=async()=>{state.calls++;return Response.json({choices:[{message:{content:typeof state.raw==='string'?state.raw:JSON.stringify(state.raw)}}]})};

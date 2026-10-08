@@ -27,6 +27,25 @@
   // real records or cost real money. It stays closed (503) until its own Access application is created
   // and its ACCESS_* values are filled in. Build and deploy it with `npm run deploy:staging`.
   "env": {
+    // Browser tests (tests/e2e): a throwaway local-only worker. No Access, no real AI key, its own local database.
+    // It is never deployed; the ENVIRONMENT value is what allows the fake AI provider URL.
+    "e2e": {
+      "name": "catnr-e2e",
+      "triggers": { "crons": [] },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "catnr-e2e-db", "database_id": "00000000-0000-4000-8000-000000000e2e", "migrations_dir": "drizzle" }
+      ],
+      "vars": { "ENVIRONMENT": "e2e", "ACCESS_TEAM_DOMAIN": "", "ACCESS_AUD": "" }
+    },
+    // Browser test of the sign-in wall: Access settings are present (to a team that does not exist), so every request must be refused.
+    "e2e-locked": {
+      "name": "catnr-e2e-locked",
+      "triggers": { "crons": [] },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "catnr-e2e-locked-db", "database_id": "00000000-0000-4000-8000-0000000e2e10", "migrations_dir": "drizzle" }
+      ],
+      "vars": { "ENVIRONMENT": "e2e-locked", "ACCESS_TEAM_DOMAIN": "locked.example.invalid", "ACCESS_AUD": "e2e-locked-audience" }
+    },
     "staging": {
       "name": "catnr-staging",
       "triggers": { "crons": [] },
