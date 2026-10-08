@@ -26,12 +26,6 @@ type Recognition = {
 };
 type RecognitionCtor = new () => Recognition;
 
-const PROMPTS = [
-  "The thinner black boy from Jefferson got neutered today, rabies and FVRCP.",
-  "Sarah Yunker donated two 12-pound bags of Friskies.",
-  "We made $300 selling stickers.",
-  "Which cats are waiting for adoption?",
-];
 const TITLES: Record<CaptureMode, [eyebrow: string, title: string]> = {
   ask: ["ASK YOUR ASSISTANT", "What do you want to know?"],
   photo: ["PHOTO + CONTEXT", "Add a cat photo"],
@@ -299,15 +293,6 @@ export default function CaptureSheet({ initial, sessionId, onClose, onSaved }: P
               : "Type naturally…"
         }
       />
-      {!text && (mode === "text" || mode === "ask") && (
-        <div className="suggestions" aria-label="Examples">
-          {PROMPTS.map((p) => (
-            <button type="button" key={p} onClick={() => setText(p)}>
-              {p}
-            </button>
-          ))}
-        </div>
-      )}
       {needsConfirm && reply && <ConfirmCard reply={reply} busy={busy === "confirm"} onYes={confirm} onNo={dismiss} />}
       {reply && !needsConfirm && (
         <div

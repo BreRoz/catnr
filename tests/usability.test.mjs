@@ -192,10 +192,10 @@ test('a visible keyboard focus style exists', async () => {
   assert.match(await src('app/styles/states.css'), /:focus-visible\s*\{\s*outline:\s*3px solid/);
 });
 
-test('typed text is never discarded by opening another mode or choosing an example', async () => {
+test('typed text is never discarded by opening another mode', async () => {
   const capture = await src('app/capture-sheet.tsx');
   assert.match(capture, /drafts\.save/);
-  assert.match(capture, /!text &&/, 'example prompts only show while the box is empty');
+  assert.doesNotMatch(capture, /PROMPTS|suggestions/, 'no sample sentences are offered');
   const page = await homeScreenSource();
   assert.doesNotMatch(page, /setText\(""\)/);
   assert.match(page, /Continue/);
