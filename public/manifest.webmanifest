@@ -1,0 +1,15 @@
+{
+  "name": "TNR Assistant",
+  "short_name": "TNR",
+  "description": "A careful AI memory for Ari's TNR and cat rescue work.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f5ee",
+  "theme_color": "#19483e",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

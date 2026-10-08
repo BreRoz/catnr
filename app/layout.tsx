@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,7 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#19483e",
+};
+
 export const metadata: Metadata = {
+  applicationName: "TNR Assistant",
+  appleWebApp: { capable: true, title: "TNR Assistant", statusBarStyle: "default" },
   title: "TNR Assistant",
   description: "A careful AI memory for Ari's TNR and cat rescue work.",
   openGraph: {
@@ -29,7 +38,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/tnr-cat.png",
     shortcut: "/tnr-cat.png",
-    apple: "/tnr-cat.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -40,11 +49,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <head>
+        {/* The whole site sits behind Cloudflare Access, so the manifest request must carry the sign-in cookie. */}
+        <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
     </html>
   );
 }
