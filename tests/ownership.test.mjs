@@ -1,29 +1,17 @@
 import { migrations as allMigrations } from './helpers/migrations.mjs';
-import { linkMoney } from './helpers/money.mjs';
+import { loadRoute } from './helpers/assistant.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFile } from 'node:fs/promises';
-import ts from 'typescript';
 
 const sql = allMigrations;
-const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
-const correctionJS=ts.transpileModule(await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
-const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
-const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
-const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
-const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(linkMoney(validationSource),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(linkMoney(source).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__ownershipEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
 const db=new DatabaseSync(':memory:');db.exec(sql[0]);db.exec(sql[1]);
 db.exec("INSERT INTO cats(id,name,created_at,updated_at) VALUES('legacy','Legacy','now','now'); INSERT INTO people(id,owner_id,name,created_at) VALUES('local','local-owner','Legacy person','now')");
 for(const migration of sql.slice(2))db.exec(migration);
 const binding={async batch(statements){db.exec('BEGIN');try{const r=[];for(const statement of statements)r.push(await statement.run());db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}},prepare(query){let values=[];return {bind(...v){values=v.map(x=>x===undefined?null:x);return this},async first(){return db.prepare(query).get(...values)||null},async all(){return {results:db.prepare(query).all(...values)}},async run(){const r=db.prepare(query).run(...values);return {...r,meta:{changes:Number(r.changes)}}}}}};
 let photoReads=0;
-globalThis.__ownershipEnv={DB:binding,PHOTOS:{async get(){photoReads++;return {body:'photo',httpMetadata:{contentType:'image/jpeg'}}}}};
-const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const ownershipEnv={DB:binding,PHOTOS:{async get(){photoReads++;return {body:'photo',httpMetadata:{contentType:'image/jpeg'}}}}};
+const api=await loadRoute(ownershipEnv);
 const req=(owner,method='GET',path='',body)=>new Request(`https://rescue.test/api/assistant${path}`,{method,headers:owner?{'x-catnr-user-id':owner,'x-catnr-user-email':`${owner}@test`}: {},...(body&&method!=='GET'?{body:JSON.stringify(body)}:{})});
 db.exec("INSERT INTO cats(id,owner_id,name,created_at,updated_at) VALUES('b-cat','B','Secret cat','now','now'); INSERT INTO people(id,owner_id,name,created_at) VALUES('b-person','B','Secret person','now'); INSERT INTO events(id,owner_id,cat_id,event_type,occurred_at,created_at) VALUES('b-event','B','b-cat','observation','now','now'); INSERT INTO photos(id,owner_id,cat_id,storage_location,taken_at) VALUES('b-photo','B','b-cat','cats/B/test.jpg','now')");
 test('anonymous and reserved identities cannot access any API method',async()=>{for(const method of ['GET','POST','PATCH'])for(const owner of [null,'local-owner','legacy:quarantine'])assert.equal((await api[method](req(owner,method,'',{input:'x'}))).status,401);assert.equal((await api.GET(new Request('https://rescue.test/api/assistant',{headers:{'x-catnr-user-id':'A'}}))).status,401)});
@@ -46,7 +34,7 @@ test('database rejects missing owners, reassignment and all foreign relationship
 });
 test('AI cannot attach a transaction to another user cat or update their records',async()=>{
  const originalFetch=globalThis.fetch;
- globalThis.__ownershipEnv.OPENROUTER_API_KEY='test-only';
+ ownershipEnv.OPENROUTER_API_KEY='test-only';
  let plan={intent:'record',message:'saved',clarification:null,confidence:1,cats:[],people:[],events:[],transactions:[{relatedCatRef:'b-cat',transactionType:'cash',direction:'inflow',amount:10,description:'unsafe'}],query:{kind:'none'},socialDraft:null};
  globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify(plan)}}]});
  try{
@@ -56,5 +44,5 @@ test('AI cannot attach a transaction to another user cat or update their records
   plan={...plan,transactions:[],cats:[{existingId:'b-cat',ref:'b-cat',name:'Stolen'}]};
   assert.equal((await api.POST(req('A','POST','',{input:'change'}))).status,422);
   assert.equal(db.prepare("SELECT name FROM cats WHERE id='b-cat'").get().name,'Secret cat');
- }finally{globalThis.fetch=originalFetch;delete globalThis.__ownershipEnv.OPENROUTER_API_KEY;}
+ }finally{globalThis.fetch=originalFetch;delete ownershipEnv.OPENROUTER_API_KEY;}
 });

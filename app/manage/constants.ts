@@ -3,8 +3,7 @@
 export { AGE_CLASSES, EVENT_TYPES, PERSON_TYPES, SEXES, TRANSACTION_TYPES } from "../api/assistant/validation";
 export { CURRENCIES } from "../money";
 
-export const CAT_STATUSES = ["observed", "captured", "awaiting vet", "recovering", "foster", "available for adoption", "adoption pending", "adopted", "returned to colony", "lost", "deceased"] as const;
+export { CAT_STATUSES } from "../vocabulary";
 export const COLONY_STATUSES = ["active", "inactive"] as const;
-
 
 export { INFLOW_TYPES, OUTFLOW_TYPES } from "../api/assistant/validation";

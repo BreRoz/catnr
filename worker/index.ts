@@ -1,4 +1,4 @@
-/** Cloudflare Worker entry point for the vinext-starter template. */
+/** Cloudflare Worker entry point: checks who is calling, then hands the request to the app. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { verifyAccessJwt } from "./access";
@@ -51,7 +51,10 @@ async function withIdentity(request: Request, env: Env): Promise<Request | Respo
     identity = await verifyAccessJwt(request.headers.get("cf-access-jwt-assertion"), teamDomain, audience);
   } catch {
     // Access' public keys could not be fetched. Refuse (fail closed) with a clear, retryable answer.
-    return new Response("Sign-in is temporarily unavailable. Please try again in a minute.", { status: 503, headers: { "retry-after": "30" } });
+    return new Response("Sign-in is temporarily unavailable. Please try again in a minute.", {
+      status: 503,
+      headers: { "retry-after": "30" },
+    });
   }
   if (!identity) return new Response("Please sign in to Cat Tracker.", { status: 401 });
   headers.set(USER_ID_HEADER, identity.userId);
@@ -86,7 +89,14 @@ const worker = {
     const started = Date.now();
     const authed = await withIdentity(request, env);
     if (authed instanceof Response) {
-      ctx.waitUntil(recordAuthFailure(env.DB, url.pathname, authed.status, authed.status === 503 ? "sign-in unavailable or not configured" : "missing or invalid Access token"));
+      ctx.waitUntil(
+        recordAuthFailure(
+          env.DB,
+          url.pathname,
+          authed.status,
+          authed.status === 503 ? "sign-in unavailable or not configured" : "missing or invalid Access token",
+        ),
+      );
       return hardened(authed, url);
     }
     request = authed;
@@ -94,7 +104,11 @@ const worker = {
     if (url.pathname === "/_ops/status" && request.method === "GET") {
       return hardened(Response.json(await opsStatus(env.DB, env)), url);
     }
-    if (url.pathname.startsWith("/api/") && WRITE_METHODS.has(request.method) && Number(request.headers.get("content-length") || 0) > MAX_REQUEST_BYTES) {
+    if (
+      url.pathname.startsWith("/api/") &&
+      WRITE_METHODS.has(request.method) &&
+      Number(request.headers.get("content-length") || 0) > MAX_REQUEST_BYTES
+    ) {
       ctx.waitUntil(observe(env.DB, { pathname: url.pathname, status: 413, ms: 0, owner: request.headers.get(USER_ID_HEADER) }));
       return hardened(Response.json({ outcome: "rejected", message: "That request is too large." }, { status: 413 }), url);
     }
@@ -103,17 +117,31 @@ const worker = {
       if (!env.IMAGES) return env.ASSETS.fetch(new Request(new URL(url.searchParams.get("url") || "/", request.url)));
       const images = env.IMAGES;
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return handleImageOptimization(request, {
-        fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
-        transformImage: async (body, { width, format, quality }) => {
-          const result = await images.input(body).transform(width > 0 ? { width } : {}).output({ format, quality });
-          return result.response();
+      return handleImageOptimization(
+        request,
+        {
+          fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
+          transformImage: async (body, { width, format, quality }) => {
+            const result = await images
+              .input(body)
+              .transform(width > 0 ? { width } : {})
+              .output({ format, quality });
+            return result.response();
+          },
         },
-      }, allowedWidths);
+        allowedWidths,
+      );
     }
 
     const response = await handler.fetch(request, env, ctx);
-    ctx.waitUntil(observe(env.DB, { pathname: url.pathname, status: response.status, ms: Date.now() - started, owner: request.headers.get(USER_ID_HEADER) }));
+    ctx.waitUntil(
+      observe(env.DB, {
+        pathname: url.pathname,
+        status: response.status,
+        ms: Date.now() - started,
+        owner: request.headers.get(USER_ID_HEADER),
+      }),
+    );
     return hardened(response, url);
   },
 };
@@ -123,15 +151,22 @@ export default {
   // Daily: applies the two automatic retention rules (see app/portability/retention.ts).
   // Success and failure are both recorded so a silently dead job shows up (see scripts/ops-report.mjs).
   async scheduled(_event: unknown, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil((async () => {
-      const started = Date.now();
-      try {
-        const result = await purgeExpired(env.DB);
-        await recordEvent(env.DB, { kind: "job_ok", route: "scheduled:purge", durationMs: Date.now() - started, detail: JSON.stringify(result) });
-      } catch (error) {
-        await recordEvent(env.DB, { kind: "job_failure", route: "scheduled:purge", durationMs: Date.now() - started, detail: error });
-        throw error; // Let Cloudflare mark the invocation as failed as well.
-      }
-    })());
+    ctx.waitUntil(
+      (async () => {
+        const started = Date.now();
+        try {
+          const result = await purgeExpired(env.DB);
+          await recordEvent(env.DB, {
+            kind: "job_ok",
+            route: "scheduled:purge",
+            durationMs: Date.now() - started,
+            detail: JSON.stringify(result),
+          });
+        } catch (error) {
+          await recordEvent(env.DB, { kind: "job_failure", route: "scheduled:purge", durationMs: Date.now() - started, detail: error });
+          throw error; // Let Cloudflare mark the invocation as failed as well.
+        }
+      })(),
+    );
   },
 };

@@ -1,0 +1,89 @@
+/* Keyboard focus, row buttons, failure and progress states. */
+:focus-visible {
+  outline: 3px solid #1f7a63;
+  outline-offset: 2px;
+}
+.sheet:focus {
+  outline: none;
+}
+.sheet:focus-visible {
+  outline: none;
+}
+.memoryList .rowBtn {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 11px;
+  align-items: center;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-bottom: 1px solid #edf0ec;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  min-height: 48px;
+}
+.memoryList .rowBtn:last-child {
+  border-bottom: 0;
+}
+.memoryList .rowBtn:focus-visible {
+  outline-offset: -3px;
+}
+.rowHint {
+  font-size: 11px;
+  color: #71827a;
+  white-space: nowrap;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+}
+.reply.failed {
+  background: #fdecea;
+  color: #7c2a1e;
+}
+.working {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #eef4ed;
+  color: var(--forest);
+  font-size: 13px;
+  font-weight: 700;
+}
+.recError p {
+  margin: 0 0 6px;
+}
+.recError .recButtons {
+  margin-top: 4px;
+}
+.photoChooser small {
+  display: block;
+  margin-top: 8px;
+  color: #65786f;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.recHint {
+  color: #5d7068;
+}
+button,
+.recItem {
+  touch-action: manipulation;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+.primary,
+.close,
+.recSmall,
+.recSecondary,
+.recLink {
+  min-height: 44px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

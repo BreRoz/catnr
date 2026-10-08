@@ -24,21 +24,61 @@ export function parseCsv(input: string): ParsedTable {
   const text = input.replace(/^\uFEFF/, "");
   const delimiter = sniff(text);
   const records: string[][] = [];
-  let field = "", row: string[] = [], quoted = false, i = 0, touched = false;
-  const endField = () => { row.push(field); field = ""; };
-  const endRow = () => { endField(); if (touched || row.some((c) => c !== "")) records.push(row); row = []; touched = false; };
+  let field = "",
+    row: string[] = [],
+    quoted = false,
+    i = 0,
+    touched = false;
+  const endField = () => {
+    row.push(field);
+    field = "";
+  };
+  const endRow = () => {
+    endField();
+    if (touched || row.some((c) => c !== "")) records.push(row);
+    row = [];
+    touched = false;
+  };
   while (i < text.length) {
     const ch = text[i];
     if (quoted) {
-      if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i += 2; continue; } quoted = false; i++; continue; }
-      field += ch; i++; continue;
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i += 2;
+          continue;
+        }
+        quoted = false;
+        i++;
+        continue;
+      }
+      field += ch;
+      i++;
+      continue;
     }
-    if (ch === '"' && field === "") { quoted = true; touched = true; i++; continue; }
-    if (ch === delimiter) { touched = true; endField(); i++; continue; }
-    if (ch === "\r" || ch === "\n") { if (ch === "\r" && text[i + 1] === "\n") i++; endRow(); i++; continue; }
-    field += ch; touched = true; i++;
+    if (ch === '"' && field === "") {
+      quoted = true;
+      touched = true;
+      i++;
+      continue;
+    }
+    if (ch === delimiter) {
+      touched = true;
+      endField();
+      i++;
+      continue;
+    }
+    if (ch === "\r" || ch === "\n") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      endRow();
+      i++;
+      continue;
+    }
+    field += ch;
+    touched = true;
+    i++;
   }
-  if (quoted) throw new CsvError("A quoted value is never closed. Check for a stray \" character.");
+  if (quoted) throw new CsvError('A quoted value is never closed. Check for a stray " character.');
   if (field !== "" || row.length || touched) endRow();
   // Drop blank lines (a lone empty cell) so trailing newlines and spacer rows don't become records.
   const table = records.filter((r) => r.some((c) => c.trim() !== ""));

@@ -1,6 +1,6 @@
 // Stage 11: production operations - monitoring, usage limits, kill switches, backup/restore, deploy safety.
 import { migrations } from './helpers/migrations.mjs';
-import { linkMoney } from './helpers/money.mjs';
+import { loadRoute } from './helpers/assistant.mjs';
 import { loadTs } from './helpers/load-ts.mjs';
 import { makeD1 } from './helpers/records.mjs';
 import test from 'node:test';
@@ -11,7 +11,6 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const log = await loadTs('app/ops/log.ts');
@@ -127,12 +126,8 @@ test('photo uploads are capped per day', async () => {
 });
 
 // ---------------------------------------------------------------- the assistant route, end to end
-const compile = (src) => ts.transpileModule(src, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const url = (js) => `data:text/javascript;base64,${Buffer.from(js).toString('base64')}`;
-const read = (n) => readFile(new URL(`../app/api/assistant/${n}.ts`, import.meta.url), 'utf8');
-const urls = { validation: url(compile(linkMoney(await read('validation')))), corrections: url(compile(await read('corrections'))), reliability: url(compile(await read('reliability'))), clarifications: url(compile(await read('clarifications'))) };
-const env = {}; globalThis.__opsEnv = env;
-const route = await import(url(compile(linkMoney(await read('route')).replace('from "./validation"', `from "${urls.validation}"`).replace('from "./reliability"', `from "${urls.reliability}"`).replace('from "./corrections"', `from "${urls.corrections}"`).replace('from "./clarifications"', `from "${urls.clarifications}"`).replace('import { env } from "cloudflare:workers";', 'const env=globalThis.__opsEnv;'))));
+const env = {};
+const route = await loadRoute(env);
 const PHOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 const planFor = (note) => ({ intent: 'record', message: 'Saved.', clarification: null, confidence: 1, cats: [{ ref: 'new', existingId: null, name: 'Milo', sex: null, ageClass: null, appearance: null, distinguishingCharacteristics: null, healthObservations: null, reproductiveSignificance: null, origin: null, currentStatus: 'foster', currentLocation: null, microchipNumber: null }], people: [], events: [{ catRef: 'new', eventType: 'foster', occurredAt: null, location: null, personName: null, notes: note }], transactions: [], query: { kind: 'none', catId: null, status: null, year: null, search: null }, socialDraft: null });
 function harness({ provider = 'ok' } = {}) {

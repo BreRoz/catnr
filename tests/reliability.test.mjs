@@ -1,25 +1,12 @@
 import { migrations as allMigrations } from './helpers/migrations.mjs';
-import { linkMoney } from './helpers/money.mjs';
+import { loadRoute } from './helpers/assistant.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFile } from 'node:fs/promises';
-import ts from 'typescript';
 
 const migrations=allMigrations;
-const source=await readFile(new URL('../app/api/assistant/route.ts',import.meta.url),'utf8');
-const helperSource=await readFile(new URL('../app/api/assistant/reliability.ts',import.meta.url),'utf8');
-const correctionSource=await readFile(new URL('../app/api/assistant/corrections.ts',import.meta.url),'utf8');
-const correctionJS=ts.transpileModule(correctionSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const correctionURL=`data:text/javascript;base64,${Buffer.from(correctionJS).toString('base64')}`;
-const helperJS=ts.transpileModule(helperSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const helperURL=`data:text/javascript;base64,${Buffer.from(helperJS).toString('base64')}`;
-const validationSource=await readFile(new URL('../app/api/assistant/validation.ts',import.meta.url),'utf8');
-const validationURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(linkMoney(validationSource),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const clarificationsURL=`data:text/javascript;base64,${Buffer.from(ts.transpileModule(await readFile(new URL('../app/api/assistant/clarifications.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText).toString('base64')}`;
-const js=ts.transpileModule(linkMoney(source).replace('from "./validation"',`from "${validationURL}"`).replace('from "./reliability"',`from "${helperURL}"`).replace('from "./corrections"',`from "${correctionURL}"`).replace('from "./clarifications"',`from "${clarificationsURL}"`).replace('import { env } from "cloudflare:workers";','const env=globalThis.__reliabilityEnv;'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const env={};globalThis.__reliabilityEnv=env;
-const api=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const env={};
+const api=await loadRoute(env);
 const cat=(id=null)=>({ref:id||'new',existingId:id,name:id?null:'Milo',sex:null,ageClass:null,appearance:null,distinguishingCharacteristics:null,healthObservations:null,reproductiveSignificance:null,origin:'Jefferson',currentStatus:'foster',currentLocation:null,microchipNumber:null});
 const plan=()=>({intent:'record',message:'Saved.',clarification:null,confidence:1,cats:[cat()],people:[{ref:'donor',existingId:null,name:'Sarah',type:'donor',generalLocation:null,contact:null}],events:[{catRef:'new',eventType:'foster',occurredAt:null,location:null,personName:'Sarah',notes:'Fostered'}],transactions:[{transactionType:'cash_donation',direction:'inflow',date:null,amount:100,currency:'USD',personName:'Sarah',category:'donation',description:'Donation',item:null,quantity:null,unit:null,estimatedValue:null,relatedCatRef:'new'}],query:{kind:'none'},socialDraft:null});
 const photo='data:image/jpeg;base64,/9j/2Q==';

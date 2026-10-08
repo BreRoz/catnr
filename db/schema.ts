@@ -228,13 +228,17 @@ export const clarificationResolutions = sqliteTable("clarification_resolutions",
   resolvedAt: text("resolved_at").notNull(),
 });
 
-export const writeRequests = sqliteTable("write_requests", {
-  ownerId: text("owner_id").notNull(),
-  requestKey: text("request_key").notNull(),
-  requestHash: text("request_hash").notNull(),
-  response: text("response").notNull(),
-  createdAt: text("created_at").notNull().default(nowIso),
-}, (t) => [primaryKey({ columns: [t.ownerId, t.requestKey] })]);
+export const writeRequests = sqliteTable(
+  "write_requests",
+  {
+    ownerId: text("owner_id").notNull(),
+    requestKey: text("request_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    response: text("response").notNull(),
+    createdAt: text("created_at").notNull().default(nowIso),
+  },
+  (t) => [primaryKey({ columns: [t.ownerId, t.requestKey] })],
+);
 
 export const rescueRevisions = sqliteTable("rescue_revisions", {
   ownerId: text("owner_id").notNull().primaryKey(),
@@ -276,14 +280,18 @@ export const recordChanges = sqliteTable("record_changes", {
 });
 
 // "These are different records": remembered so a pair is not suggested as a duplicate again.
-export const duplicateDismissals = sqliteTable("duplicate_dismissals", {
-  ownerId: text("owner_id").notNull(),
-  recordType: text("record_type").notNull(),
-  firstId: text("first_id").notNull(),
-  secondId: text("second_id").notNull(),
-  actorId: text("actor_id").notNull(),
-  createdAt: text("created_at").notNull().default(nowIso),
-}, (t) => [primaryKey({ columns: [t.ownerId, t.recordType, t.firstId, t.secondId] })]);
+export const duplicateDismissals = sqliteTable(
+  "duplicate_dismissals",
+  {
+    ownerId: text("owner_id").notNull(),
+    recordType: text("record_type").notNull(),
+    firstId: text("first_id").notNull(),
+    secondId: text("second_id").notNull(),
+    actorId: text("actor_id").notNull(),
+    createdAt: text("created_at").notNull().default(nowIso),
+  },
+  (t) => [primaryKey({ columns: [t.ownerId, t.recordType, t.firstId, t.secondId] })],
+);
 
 // Download log: when personal data left the app, in which form. Counts only, never content.
 export const dataExports = sqliteTable("data_exports", {

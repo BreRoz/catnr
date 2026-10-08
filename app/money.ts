@@ -8,7 +8,12 @@ export type CurrencyCode = keyof typeof CURRENCY_MINOR_UNITS;
 export const CURRENCIES = Object.keys(CURRENCY_MINOR_UNITS) as CurrencyCode[];
 export const DEFAULT_CURRENCY: CurrencyCode = "USD";
 
-export class MoneyError extends Error { constructor(message: string) { super(message); this.name = "MoneyError"; } }
+export class MoneyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MoneyError";
+  }
+}
 
 export function minorUnitExponent(currency: string): number {
   const exponent = (CURRENCY_MINOR_UNITS as Record<string, number>)[currency];
@@ -44,7 +49,12 @@ export function formatMoney(minor: number, currency: string = DEFAULT_CURRENCY):
   const decimal = minorToDecimalString(minor, currency);
   const exponent = minorUnitExponent(currency);
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: exponent, maximumFractionDigits: exponent }).format(Number(decimal));
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: exponent,
+      maximumFractionDigits: exponent,
+    }).format(Number(decimal));
   } catch {
     return `${decimal} ${currency}`;
   }

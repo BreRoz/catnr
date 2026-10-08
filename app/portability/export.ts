@@ -10,7 +10,22 @@ export const PROFILES = ["full", "shareable"] as const;
 export type Profile = (typeof PROFILES)[number];
 
 /** Tables that belong in an export, in the order they are written. Internal bookkeeping is deliberately absent. */
-export const EXPORT_TABLES = ["colonies", "people", "cats", "events", "photos", "transactions", "ai_inputs", "corrections", "record_changes", "merges", "proposed_actions", "clarifications", "clarification_answers", "duplicate_dismissals"] as const;
+export const EXPORT_TABLES = [
+  "colonies",
+  "people",
+  "cats",
+  "events",
+  "photos",
+  "transactions",
+  "ai_inputs",
+  "corrections",
+  "record_changes",
+  "merges",
+  "proposed_actions",
+  "clarifications",
+  "clarification_answers",
+  "duplicate_dismissals",
+] as const;
 export type ExportTable = (typeof EXPORT_TABLES)[number];
 /** Left out on purpose: owners, write_requests, write_guards, rescue_revisions, proposal_executions, clarification_resolutions (technical bookkeeping). */
 export const CSV_TABLES: ExportTable[] = ["cats", "colonies", "people", "events", "transactions", "photos"];
@@ -19,19 +34,64 @@ export const CSV_TABLES: ExportTable[] = ["cats", "colonies", "people", "events"
 // Colony places, coordinates, people, contact details, descriptions, notes, health details and photos never appear in it.
 const SHAREABLE: Partial<Record<ExportTable, string[]>> = {
   colonies: ["id", "name", "status", "archived_at"],
-  cats: ["id", "name", "sex", "age_class", "appearance", "distinguishing_characteristics", "reproductive_significance", "origin_colony_id", "current_status", "created_at", "updated_at", "archived_at"],
+  cats: [
+    "id",
+    "name",
+    "sex",
+    "age_class",
+    "appearance",
+    "distinguishing_characteristics",
+    "reproductive_significance",
+    "origin_colony_id",
+    "current_status",
+    "created_at",
+    "updated_at",
+    "archived_at",
+  ],
   events: ["id", "cat_id", "event_type", "occurred_at", "created_at", "superseded_at", "voided_at"],
-  transactions: ["id", "transaction_type", "direction", "date", "amount_minor", "currency", "category", "item", "quantity", "unit", "estimated_value_minor", "related_cat_id", "related_colony_id", "created_at", "superseded_at", "voided_at"],
+  transactions: [
+    "id",
+    "transaction_type",
+    "direction",
+    "date",
+    "amount_minor",
+    "currency",
+    "category",
+    "item",
+    "quantity",
+    "unit",
+    "estimated_value_minor",
+    "related_cat_id",
+    "related_colony_id",
+    "created_at",
+    "superseded_at",
+    "voided_at",
+  ],
 };
 
 const ORDER: Record<ExportTable, string> = {
-  colonies: "created_at,id", people: "created_at,id", cats: "created_at,id", events: "occurred_at,id", photos: "taken_at,id", transactions: "date,id", ai_inputs: "created_at,id",
-  corrections: "created_at,id", record_changes: "created_at,rowid", merges: "created_at,id", proposed_actions: "created_at,id", clarifications: "created_at,id", clarification_answers: "created_at,id", duplicate_dismissals: "created_at",
+  colonies: "created_at,id",
+  people: "created_at,id",
+  cats: "created_at,id",
+  events: "occurred_at,id",
+  photos: "taken_at,id",
+  transactions: "date,id",
+  ai_inputs: "created_at,id",
+  corrections: "created_at,id",
+  record_changes: "created_at,rowid",
+  merges: "created_at,id",
+  proposed_actions: "created_at,id",
+  clarifications: "created_at,id",
+  clarification_answers: "created_at,id",
+  duplicate_dismissals: "created_at",
 };
 
 const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
 const EXTENSION: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-export const photoFileName = (row: Row) => { const m = typeof row.storage_location === "string" ? row.storage_location.match(DATA_URL) : null; return m ? `photos/${row.id}.${EXTENSION[m[1]]}` : null; };
+export const photoFileName = (row: Row) => {
+  const m = typeof row.storage_location === "string" ? row.storage_location.match(DATA_URL) : null;
+  return m ? `photos/${row.id}.${EXTENSION[m[1]]}` : null;
+};
 
 export function profileFrom(params: URLSearchParams): Profile {
   const profile = params.get("profile") || "full";
@@ -41,10 +101,17 @@ export function profileFrom(params: URLSearchParams): Profile {
 
 /** Strips ownership, moves photo bytes and queued photo data out of the rows, and applies the profile. */
 function shape(table: ExportTable, row: Row, profile: Profile): Row {
-  const { owner_id: _owner, ...rest } = row; void _owner;
+  const { owner_id: _owner, ...rest } = row;
+  void _owner;
   if (profile === "shareable") return Object.fromEntries(SHAREABLE[table]!.map((c) => [c, rest[c] ?? null]));
-  if (table === "photos") { const { storage_location, ...meta } = rest; return { ...meta, file: photoFileName({ id: rest.id, storage_location }) }; }
-  if (table === "clarifications") { const { photo_data, ...meta } = rest; return { ...meta, has_photo: photo_data != null ? 1 : 0 }; }
+  if (table === "photos") {
+    const { storage_location, ...meta } = rest;
+    return { ...meta, file: photoFileName({ id: rest.id, storage_location }) };
+  }
+  if (table === "clarifications") {
+    const { photo_data, ...meta } = rest;
+    return { ...meta, has_photo: photo_data != null ? 1 : 0 };
+  }
   return rest;
 }
 
@@ -90,15 +157,27 @@ Reading the data
 - Text in CSV cells that starts with = + - or @ has a ' put in front so a spreadsheet can never run it as a formula.
 ${profile === "full" ? "\nThis file contains personal information (contact details, donors, colony locations). Keep it somewhere private and do not share it as it is.\n" : ""}`;
 
-async function* zipEntries(db: D1, owner: string, profile: Profile, tables: Record<string, Row[]>, exportedAt: string): AsyncGenerator<ZipEntry> {
+async function* zipEntries(
+  db: D1,
+  owner: string,
+  profile: Profile,
+  tables: Record<string, Row[]>,
+  exportedAt: string,
+): AsyncGenerator<ZipEntry> {
   const encode = (s: string) => new TextEncoder().encode(s);
   yield { name: "README.txt", data: encode(README(profile, exportedAt)) };
   yield { name: "export.json", data: encode(JSON.stringify(exportDocument(profile, tables, exportedAt), null, 1)) };
-  for (const table of CSV_TABLES) if (tables[table]) yield { name: `csv/${table}.csv`, data: encode(csvFor(table, tables[table], profile)) };
+  for (const table of CSV_TABLES)
+    if (tables[table]) yield { name: `csv/${table}.csv`, data: encode(csvFor(table, tables[table], profile)) };
   if (profile !== "full") return;
   // Photos are read one at a time so memory stays small however many there are.
   for (const photo of (tables.photos ?? []).filter((p) => p.file)) {
-    const row = await first<{ storage_location: string }>(db, "SELECT storage_location FROM photos WHERE id=? AND owner_id=?", String(photo.id), owner);
+    const row = await first<{ storage_location: string }>(
+      db,
+      "SELECT storage_location FROM photos WHERE id=? AND owner_id=?",
+      String(photo.id),
+      owner,
+    );
     const match = row?.storage_location.match(DATA_URL);
     if (!match) continue;
     yield { name: String(photo.file), data: Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0)) };
@@ -110,17 +189,32 @@ export function exportDocument(profile: Profile, tables: Record<string, Row[]>, 
 }
 
 async function logExport(db: D1, owner: string, profile: Profile, format: "zip" | "json" | "csv", counts: Record<string, number>) {
-  await db.prepare("INSERT INTO data_exports(id,owner_id,profile,format,counts,created_at) VALUES(?,?,?,?,?,?)").bind(makeId("export"), owner, profile, format, JSON.stringify(counts), now()).run();
+  await db
+    .prepare("INSERT INTO data_exports(id,owner_id,profile,format,counts,created_at) VALUES(?,?,?,?,?,?)")
+    .bind(makeId("export"), owner, profile, format, JSON.stringify(counts), now())
+    .run();
 }
 
 const stamp = () => now().slice(0, 10);
 const HEADERS = { "cache-control": "no-store", "x-content-type-options": "nosniff" };
-const download = (body: BodyInit, type: string, name: string) => new Response(body, { headers: { ...HEADERS, "content-type": type, "content-disposition": `attachment; filename="${name}"` } });
+const download = (body: BodyInit, type: string, name: string) =>
+  new Response(body, { headers: { ...HEADERS, "content-type": type, "content-disposition": `attachment; filename="${name}"` } });
 
 /** With no `download` parameter: what is available, how much, and when the last download happened. */
 export async function summary(db: D1, owner: string) {
-  const counts = Object.fromEntries(await Promise.all(EXPORT_TABLES.map(async (t) => [t, Number((await first<{ n: number }>(db, `SELECT COUNT(*) n FROM ${t} WHERE owner_id=?`, owner))?.n ?? 0)])));
-  const last = await first<{ created_at: string; profile: string }>(db, "SELECT created_at,profile FROM data_exports WHERE owner_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1", owner);
+  const counts = Object.fromEntries(
+    await Promise.all(
+      EXPORT_TABLES.map(async (t) => [
+        t,
+        Number((await first<{ n: number }>(db, `SELECT COUNT(*) n FROM ${t} WHERE owner_id=?`, owner))?.n ?? 0),
+      ]),
+    ),
+  );
+  const last = await first<{ created_at: string; profile: string }>(
+    db,
+    "SELECT created_at,profile FROM data_exports WHERE owner_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+    owner,
+  );
   return { counts, lastExport: last ? { at: last.created_at, profile: last.profile } : null, profiles: PROFILES, csvTables: CSV_TABLES };
 }
 
@@ -128,13 +222,23 @@ export const resource: Resource = {
   async read(db, owner, url) {
     const kind = url.searchParams.get("download");
     if (!kind) return summary(db, owner);
-    const profile = profileFrom(url.searchParams), exportedAt = now();
+    const profile = profileFrom(url.searchParams),
+      exportedAt = now();
     if (!["zip", "json", "csv"].includes(kind)) throw new ManageError("download must be zip, json or csv.");
-    const tables = await loadTables(db, owner, profile), counts = countsOf(tables);
-    if (kind === "json") { await logExport(db, owner, profile, "json", counts); return download(JSON.stringify(exportDocument(profile, tables, exportedAt), null, 1), "application/json; charset=utf-8", `catnr-${profile}-${stamp()}.json`); }
+    const tables = await loadTables(db, owner, profile),
+      counts = countsOf(tables);
+    if (kind === "json") {
+      await logExport(db, owner, profile, "json", counts);
+      return download(
+        JSON.stringify(exportDocument(profile, tables, exportedAt), null, 1),
+        "application/json; charset=utf-8",
+        `catnr-${profile}-${stamp()}.json`,
+      );
+    }
     if (kind === "csv") {
       const table = url.searchParams.get("table") as ExportTable;
-      if (!CSV_TABLES.includes(table) || !tables[table]) throw new ManageError(`table must be one of: ${CSV_TABLES.filter((t) => tables[t]).join(", ")}.`);
+      if (!CSV_TABLES.includes(table) || !tables[table])
+        throw new ManageError(`table must be one of: ${CSV_TABLES.filter((t) => tables[t]).join(", ")}.`);
       await logExport(db, owner, profile, "csv", { [table]: tables[table].length });
       return download(csvFor(table, tables[table], profile), "text/csv; charset=utf-8", `catnr-${table}-${stamp()}.csv`);
     }

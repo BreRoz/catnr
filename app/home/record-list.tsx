@@ -1,0 +1,62 @@
+import type { Row } from "./types";
+
+const iconClass = (kind: string) => (kind === "income" || kind === "in-kind" ? "green" : kind === "expense" ? "coral" : "blue");
+
+function RowIcon({ item }: { item: Row }) {
+  if (item.kind === "cat" && item.photoId) return <img src={`/api/assistant?photoId=${encodeURIComponent(item.photoId)}`} alt="" />;
+  if (item.kind === "cat") return <>♧</>;
+  if (item.kind === "income") return <>↗</>;
+  if (item.kind === "expense") return <>↘</>;
+  return <>✦</>;
+}
+
+type Props = {
+  tab: "cats" | "activity";
+  rows: Row[];
+  loading: boolean;
+  onOpenCat: (id: string) => void;
+  onEdit: (row: Row) => void;
+};
+
+/** The Cats and Activity tabs: one tappable button per line (a cat opens its history; an entry opens for correction). */
+export default function RecordList({ tab, rows, loading, onOpenCat, onEdit }: Props) {
+  return (
+    <section className="recent">
+      <div className="sectionTitle">
+        <div>
+          <p className="eyebrow">RECORDED</p>
+          <h3>{tab === "cats" ? "Cats" : "All activity"}</h3>
+        </div>
+        {tab === "activity" && <span className="editHint">Tap an entry to correct it</span>}
+      </div>
+      <div className="memoryList">
+        {rows.slice(0, 50).map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={`rowBtn ${item.kind === "cat" ? "catRow" : "activityRow"}`}
+            onClick={() => (item.kind === "cat" ? onOpenCat(item.id) : onEdit(item))}
+          >
+            <span className={`eventIcon ${iconClass(item.kind)}`} aria-hidden="true">
+              <RowIcon item={item} />
+            </span>
+            <span>
+              {item.title && <strong>{item.title}</strong>}
+              <p>{item.detail}</p>
+            </span>
+            <span className="rowHint">
+              {item.kind === "cat" ? `${item.createdAt} ›` : item.correctionId ? "Corrected · Edit ›" : "Edit ›"}
+            </span>
+          </button>
+        ))}
+        {!rows.length && !loading && (
+          <div className="empty">
+            {tab === "cats"
+              ? "No cats yet. Tell the assistant about a cat, or add one under Records."
+              : "Your first memory will appear here."}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

@@ -18,7 +18,10 @@ export function useList<T>(resource: string, params: Params, enabled = true) {
         if (!cancelled) setState((s) => ({ ...s, query, tick, error: error instanceof Error ? error.message : "Couldn’t load that." }));
       }
     }, 200);
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [resource, query, tick, enabled]);
   const reload = useCallback(() => setTick((t) => t + 1), []);
   const stale = state.query !== query || state.tick !== tick;
@@ -34,9 +37,15 @@ export function useRecord<T>(resource: string, params: Params, enabled = true) {
     if (!enabled) return;
     let cancelled = false;
     getJson<T>(resource, Object.fromEntries(new URLSearchParams(query)))
-      .then((data) => { if (!cancelled) setState({ query, tick, data }); })
-      .catch((error) => { if (!cancelled) setState({ query, tick, error: error instanceof Error ? error.message : "Couldn’t load that." }); });
-    return () => { cancelled = true; };
+      .then((data) => {
+        if (!cancelled) setState({ query, tick, data });
+      })
+      .catch((error) => {
+        if (!cancelled) setState({ query, tick, error: error instanceof Error ? error.message : "Couldn’t load that." });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [resource, query, tick, enabled]);
   const reload = useCallback(() => setTick((t) => t + 1), []);
   const stale = enabled && state.query !== query;
@@ -52,20 +61,34 @@ export function useAction() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const last = useRef<{ fingerprint: string; key: string } | null>(null);
-  const run = useCallback(async <T = { message: string; id?: string }>(resource: string, body: Record<string, unknown>, method: "POST" | "PATCH" = "POST"): Promise<T | null> => {
-    const fingerprint = `${resource}|${method}|${JSON.stringify(body)}`;
-    if (last.current?.fingerprint !== fingerprint) last.current = { fingerprint, key: newKey() };
-    setBusy(true); setError(""); setNotice("");
-    try {
-      const result = await send<T>(resource, body, last.current.key, method);
-      last.current = null;
-      setNotice((result as { message?: string }).message || "Saved.");
-      return result;
-    } catch (e) {
-      setError(e instanceof ApiError || e instanceof Error ? e.message : "That didn’t save.");
-      return null;
-    } finally { setBusy(false); }
+  const run = useCallback(
+    async <T = { message: string; id?: string }>(
+      resource: string,
+      body: Record<string, unknown>,
+      method: "POST" | "PATCH" = "POST",
+    ): Promise<T | null> => {
+      const fingerprint = `${resource}|${method}|${JSON.stringify(body)}`;
+      if (last.current?.fingerprint !== fingerprint) last.current = { fingerprint, key: newKey() };
+      setBusy(true);
+      setError("");
+      setNotice("");
+      try {
+        const result = await send<T>(resource, body, last.current.key, method);
+        last.current = null;
+        setNotice((result as { message?: string }).message || "Saved.");
+        return result;
+      } catch (e) {
+        setError(e instanceof ApiError || e instanceof Error ? e.message : "That didn’t save.");
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
+  const clear = useCallback(() => {
+    setError("");
+    setNotice("");
   }, []);
-  const clear = useCallback(() => { setError(""); setNotice(""); }, []);
   return { busy, error, notice, run, clear };
 }

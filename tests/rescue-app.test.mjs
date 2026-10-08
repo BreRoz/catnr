@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { assistantSource, homeScreenSource } from "./helpers/assistant.mjs";
 
-const route = await readFile(new URL("../app/api/assistant/route.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/reliability.ts", import.meta.url), "utf8") + await readFile(new URL("../app/api/assistant/validation.ts", import.meta.url), "utf8");
-const page = (await Promise.all(["rescue-client","capture-sheet","correction-sheet","cat-history-sheet"].map((f) => readFile(new URL(`../app/${f}.tsx`, import.meta.url), "utf8")))).join("\n");
+const route = await assistantSource();
+const page = [await homeScreenSource(), ...(await Promise.all(["capture-sheet","correction-sheet","cat-history-sheet"].map((f) => readFile(new URL(`../app/${f}.tsx`, import.meta.url), "utf8"))))].join("\n");
 const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
 
 test("uses structured AI extraction instead of scripted demo sentences", () => {
@@ -16,7 +17,7 @@ test("uses structured AI extraction instead of scripted demo sentences", () => {
 });
 
 test("requires ambiguity handling and validates identifiers before writes", () => {
-  assert.match(route, /intent:"record"\|"query"\|"clarify"/);
+  assert.match(route, /intent: "record" \| "query" \| "clarify"/);
   assert.match(route, /Nothing was silently changed/);
   assert.match(route, /SELECT id FROM \$\{table\} WHERE id=\? AND owner_id=\?/);
 });
@@ -39,7 +40,7 @@ test("renders database-backed cat history and operational metrics", () => {
 
 test("supports photo thumbnails, readable activity dates, and AI corrections", () => {
   assert.match(route, /photoId/);
-  assert.match(route, /export async function PATCH/);
+  assert.match(route, /export const PATCH/);
   assert.match(route, /Complete corrected version from Ari/);
   assert.match(page, /formatActivityDate/);
   assert.match(page, /Save correction/);

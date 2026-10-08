@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, type 
 // Open dialogs, innermost last. Only the innermost one reacts to Escape and Tab, so a sheet opened over
 // another sheet closes alone instead of taking its parent with it.
 const stack: Array<{ id: string; el: HTMLElement; requestClose: () => void }> = [];
-const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 const DirtyContext = createContext<(dirty: boolean) => void>(() => {});
 /** Forms call this with true while they hold changes that haven't been saved. */
@@ -24,9 +25,16 @@ export function Sheet({ title, eyebrow, onClose, children, className = "recSheet
   const dirty = useRef(false);
   const titleId = useId();
   const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; });
-  const requestClose = useCallback(() => { if (dirty.current && !confirmDiscard()) return; onCloseRef.current(); }, []);
-  const setDirty = useCallback((value: boolean) => { dirty.current = value; }, []);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+  const requestClose = useCallback(() => {
+    if (dirty.current && !confirmDiscard()) return;
+    onCloseRef.current();
+  }, []);
+  const setDirty = useCallback((value: boolean) => {
+    dirty.current = value;
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
@@ -37,13 +45,28 @@ export function Sheet({ title, eyebrow, onClose, children, className = "recSheet
     if (!el.contains(document.activeElement)) (el.querySelector<HTMLElement>("[data-autofocus]") ?? el).focus();
     const onKey = (e: KeyboardEvent) => {
       if (stack[stack.length - 1] !== entry) return;
-      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); requestClose(); return; }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        requestClose();
+        return;
+      }
       if (e.key !== "Tab") return;
       const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((n) => n.offsetParent !== null);
-      if (!items.length) { e.preventDefault(); el.focus(); return; }
-      const first = items[0], last = items[items.length - 1];
-      if (e.shiftKey && (document.activeElement === first || document.activeElement === el)) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      if (!items.length) {
+        e.preventDefault();
+        el.focus();
+        return;
+      }
+      const first = items[0],
+        last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === el)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey, true);
     return () => {
@@ -54,14 +77,24 @@ export function Sheet({ title, eyebrow, onClose, children, className = "recSheet
   }, [requestClose, titleId]);
 
   return (
-    <div className="sheetBackdrop" role="presentation" onClick={(e) => { if (e.target === e.currentTarget) requestClose(); }}>
+    <div
+      className="sheetBackdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) requestClose();
+      }}
+    >
       <DirtyContext.Provider value={setDirty}>
         <section ref={ref} tabIndex={-1} className={`sheet ${className}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <div className="handle" aria-hidden="true" />
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h2 id={titleId}>{title}</h2>
           {children}
-          {footer && <button type="button" className="close" onClick={requestClose}>Close</button>}
+          {footer && (
+            <button type="button" className="close" onClick={requestClose}>
+              Close
+            </button>
+          )}
         </section>
       </DirtyContext.Provider>
     </div>
@@ -71,6 +104,9 @@ export function Sheet({ title, eyebrow, onClose, children, className = "recSheet
 /** Drop inside a Sheet to mark it as holding unsaved typing while `when` is true. */
 export function DirtyWhen({ when }: { when: boolean }) {
   const report = useReportDirty();
-  useEffect(() => { report(when); return () => report(false); }, [when, report]);
+  useEffect(() => {
+    report(when);
+    return () => report(false);
+  }, [when, report]);
   return null;
 }

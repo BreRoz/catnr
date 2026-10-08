@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { loadTs } from './helpers/load-ts.mjs';
+import { homeScreenSource } from './helpers/assistant.mjs';
 
 const { describeFailure, describeMicError, workingLabel } = await loadTs('app/feedback.ts');
 const { createDraftStore } = await loadTs('app/drafts.ts');
@@ -150,8 +151,8 @@ test('an AI provider failure produces an ai_unavailable 503, not a commit failur
   const reliability = await src('app/api/assistant/reliability.ts');
   assert.match(reliability, /class AiUnavailable/);
   assert.match(reliability, /AbortSignal\.timeout\(45000\)/);
-  assert.match(reliability, /outcome:"ai_unavailable"/);
-  const route = await src('app/api/assistant/route.ts');
+  assert.match(reliability, /outcome:\s*"ai_unavailable"/);
+  const route = await src('app/api/assistant/agent.ts');
   assert.doesNotMatch(route, /await fetch\("https:\/\/(openrouter|api\.openai)/);
   assert.equal([...route.matchAll(/providerFetch\(/g)].length, 2);
 });
@@ -171,30 +172,31 @@ test('dialogs are modal, labelled, trap focus, close on Escape and restore focus
 });
 
 test('no screen defines its own dialog markup; all use the shared Sheet', async () => {
-  for (const f of ['app/rescue-client.tsx', 'app/capture-sheet.tsx', 'app/correction-sheet.tsx', 'app/cat-history-sheet.tsx']) {
+  for (const f of ['app/capture-sheet.tsx', 'app/correction-sheet.tsx', 'app/cat-history-sheet.tsx']) {
     const s = await src(f);
     assert.doesNotMatch(s, /className="sheetBackdrop"/, f);
   }
+  assert.doesNotMatch(await homeScreenSource(), /className="sheetBackdrop"/, 'home screen');
   assert.match(await src('app/capture-sheet.tsx'), /<Sheet /);
   assert.match(await src('app/records/ui.tsx'), /export \{ Sheet \} from "\.\.\/dialog"/);
 });
 
 test('clickable rows are real buttons, not divs with click handlers', async () => {
-  const page = await src('app/rescue-client.tsx');
-  assert.match(page, /<button type="button" key=\{item\.id\} className=\{`rowBtn/);
+  const page = await homeScreenSource();
+  assert.match(page, /<button\s+type="button"\s+key=\{item\.id\}\s+className=\{`rowBtn/);
   assert.doesNotMatch(page, /<article[^>]*onClick/);
   assert.match(page, /aria-current=\{tab === id \? "page"/);
 });
 
 test('a visible keyboard focus style exists', async () => {
-  assert.match(await src('app/globals.css'), /:focus-visible\{outline:3px solid/);
+  assert.match(await src('app/styles/states.css'), /:focus-visible\s*\{\s*outline:\s*3px solid/);
 });
 
 test('typed text is never discarded by opening another mode or choosing an example', async () => {
   const capture = await src('app/capture-sheet.tsx');
   assert.match(capture, /drafts\.save/);
   assert.match(capture, /!text &&/, 'example prompts only show while the box is empty');
-  const page = await src('app/rescue-client.tsx');
+  const page = await homeScreenSource();
   assert.doesNotMatch(page, /setText\(""\)/);
   assert.match(page, /Continue/);
 });

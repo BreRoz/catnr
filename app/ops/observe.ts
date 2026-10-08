@@ -19,18 +19,30 @@ export function classify(pathname: string, status: number, ms: number): { kind: 
 export async function observe(db: D1, input: { pathname: string; status: number; ms: number; owner?: string | null }) {
   const found = classify(input.pathname, input.status, input.ms);
   if (!found) return;
-  await recordEvent(found.kind === "auth_failure" && await storageFull(db) ? null : db, { kind: found.kind, owner: input.owner, route: routeLabel(input.pathname), status: input.status, durationMs: input.ms, detail: found.detail });
+  await recordEvent(found.kind === "auth_failure" && (await storageFull(db)) ? null : db, {
+    kind: found.kind,
+    owner: input.owner,
+    route: routeLabel(input.pathname),
+    status: input.status,
+    durationMs: input.ms,
+    detail: found.detail,
+  });
 }
 
 /** A request the worker itself refused before the app ran (missing or invalid Access token). */
 export async function recordAuthFailure(db: D1, pathname: string, status: number, detail: string) {
-  await recordEvent(await storageFull(db) ? null : db, { kind: "auth_failure", route: routeLabel(pathname), status, detail });
+  await recordEvent((await storageFull(db)) ? null : db, { kind: "auth_failure", route: routeLabel(pathname), status, detail });
 }
 
 async function storageFull(db: D1) {
   try {
     const since = new Date(Date.now() - 10 * 60_000).toISOString();
-    const row = await db.prepare("SELECT COUNT(*) n FROM ops_events WHERE kind='auth_failure' AND at>=?").bind(since).first<{ n: number }>();
+    const row = await db
+      .prepare("SELECT COUNT(*) n FROM ops_events WHERE kind='auth_failure' AND at>=?")
+      .bind(since)
+      .first<{ n: number }>();
     return (row?.n ?? 0) >= AUTH_FAILURE_STORE_CAP;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }

@@ -15,7 +15,8 @@ async function transpile(file) {
   if (done.has(file)) return done.get(file);
   const target = path.join(out, path.relative(root, file)).replace(/\.tsx?$/, '.mjs');
   done.set(file, target);
-  const source = await readFile(file, 'utf8');
+  // The Worker's runtime import is replaced by an object the test supplies (see helpers/assistant.mjs).
+  const source = (await readFile(file, 'utf8')).replace(/import \{ env \} from "cloudflare:workers";/, 'const env = globalThis.__catnrEnv;');
   let js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
   const specifiers = [...js.matchAll(/(?:from|import)\s*["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1]);
   for (const spec of new Set(specifiers)) {

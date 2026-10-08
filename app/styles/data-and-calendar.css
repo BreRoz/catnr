@@ -1,0 +1,193 @@
+/* My data (export, import, deletion) and the home calendar icon. */
+.dataPanel h3 {
+  margin: 22px 0 6px;
+}
+.dataCard {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin: 10px 0;
+  display: grid;
+  gap: 8px;
+}
+.dataCard p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.dataCard ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.dataLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.dataCard .recButtons {
+  flex-wrap: wrap;
+}
+.dataRule {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+.dataRule summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dataRule summary span {
+  color: #5c6f66;
+  font-size: 12px;
+}
+.dataRule p {
+  margin: 6px 0 2px;
+  line-height: 1.45;
+  color: #46594f;
+}
+.importRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 12px;
+}
+.importRows li {
+  padding: 8px 10px;
+  border-bottom: 1px solid #edf0ec;
+  line-height: 1.4;
+}
+.importRows li:last-child {
+  border: 0;
+}
+.importRows small {
+  display: block;
+  color: #6a7b72;
+}
+.imp-error {
+  background: #fdecea;
+  color: #8a2c1e;
+}
+.imp-duplicate {
+  background: #f3f4f1;
+  color: #5c6f66;
+}
+.imp-ready {
+  color: #1d5c34;
+}
+.importSkip {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.importSkip input {
+  margin-top: 3px;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.dataCard.danger {
+  border-color: #e5b8b0;
+  background: #fffaf8;
+}
+.dangerButton {
+  background: #b3392a;
+}
+.recSelect,
+.recForm select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23244a3f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 14px center;
+}
+.recFilters .recSelect {
+  padding-right: 32px;
+  background-position: right 12px center;
+}
+.todayCal {
+  position: absolute;
+  z-index: 3;
+  top: -18px;
+  right: 16px;
+  width: 76px;
+  height: 76px;
+  border-radius: 13px;
+  background: #fff;
+  border: 3px solid #1b1b1b;
+  box-shadow: 0 4px 14px #0d2c2355;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+.todayCal:before,
+.todayCal:after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 6px;
+  height: 14px;
+  border-radius: 3px;
+  background: #1b1b1b;
+  border: 2px solid #fff;
+}
+.todayCal:before {
+  left: 20px;
+}
+.todayCal:after {
+  right: 20px;
+}
+.todayCalDay {
+  background: var(--coral);
+  color: #1b1b1b;
+  font:
+    700 12px Arial,
+    Helvetica,
+    sans-serif;
+  padding: 10px 0 3px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.todayCalNum {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: #1b1b1b;
+  font:
+    400 36px Arial,
+    Helvetica,
+    sans-serif;
+  line-height: 1;
+}
+.hero .heroCopy .eyebrow {
+  max-width: 240px;
+}

@@ -1,0 +1,421 @@
+/* The Records area: manual management of cats, colonies, people and money. */
+.records {
+  padding-bottom: 96px;
+}
+.recTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+  margin: 0 -2px;
+}
+.recTabs button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4d6159;
+  cursor: pointer;
+}
+.recTabs button.active {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #fff;
+}
+.recToolbar {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+.recToolbar .primary {
+  margin-top: 2px;
+}
+.recSearch,
+.recSelect,
+.recForm input,
+.recForm select,
+.recForm textarea,
+.recDates input {
+  width: 100%;
+  border: 1px solid #cdd8d0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.recToolbar > * {
+  min-width: 0;
+}
+.recFilters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.recFilters .recSelect {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  padding: 9px 10px;
+  font-size: 13px;
+}
+.recDates {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #5c6f66;
+}
+.recDates label {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 130px;
+}
+.recList {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.recItem {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 16px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.recItem:hover,
+.recItem:focus-visible {
+  background: #f2f6f1;
+}
+.recAvatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #e7efe8;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 19px;
+  color: var(--forest);
+}
+.recAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.recIn {
+  background: #dff1e3;
+  color: #1f7a3f;
+}
+.recOut {
+  background: #fbe3dd;
+  color: #c14a36;
+}
+.recText {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.recText strong {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recText small {
+  color: #71827a;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recMeta {
+  font-size: 12px;
+  color: #5c6f66;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.recVoided {
+  opacity: 0.55;
+}
+.recVoided .recText strong {
+  text-decoration: line-through;
+}
+.recEmpty {
+  padding: 22px 10px;
+  text-align: center;
+  color: #71827a;
+  font-size: 13px;
+}
+.recHint {
+  color: #71827a;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 6px 2px;
+}
+.recError {
+  background: #fdecea;
+  color: #9c2f20;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.recNotice {
+  background: #e5f3e8;
+  color: #1d5c34;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.recTotals {
+  background: #eef4ed;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin: 6px 0;
+}
+.recPager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #5c6f66;
+  margin: 10px 0;
+}
+.recPager button,
+.recSmall,
+.recSecondary {
+  border: 1px solid #cdd8d0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.recPager button:disabled,
+.recSecondary:disabled,
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.recSecondary {
+  flex: 1;
+}
+.recLink {
+  border: 0;
+  background: none;
+  color: var(--forest);
+  text-decoration: underline;
+  font-size: 12px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+.recRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.recRow h3 {
+  margin: 0;
+}
+.recSheet h3 {
+  font:
+    600 16px/1.2 Georgia,
+    serif;
+  margin: 18px 0 6px;
+}
+.recForm {
+  display: grid;
+  gap: 12px;
+  margin: 10px 0;
+}
+.recField {
+  display: grid;
+  gap: 4px;
+}
+.recField label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4d6159;
+}
+.recField small {
+  color: #71827a;
+  font-size: 11px;
+}
+.recField textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+.recButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.recButtons .primary {
+  flex: 2;
+  margin-top: 0;
+}
+.recFacts {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.recFacts div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+.recFacts dt {
+  color: #71827a;
+}
+.recFacts dd {
+  margin: 0;
+  word-break: break-word;
+}
+.recTimeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.recTimeline li {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+.recTimeline time {
+  color: #71827a;
+  font-size: 12px;
+}
+.recTimeline p {
+  margin: 3px 0;
+  color: #4d6159;
+}
+.recInline {
+  display: flex;
+  gap: 6px;
+}
+.recLog {
+  margin: 4px 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #5c6f66;
+  display: grid;
+  gap: 3px;
+}
+.recGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 8px 0;
+}
+.recThumb {
+  aspect-ratio: 1;
+  border: 0;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e7efe8;
+  cursor: pointer;
+}
+.recThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.recFull {
+  width: 100%;
+  max-height: 55vh;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #10231d;
+  margin: 8px 0;
+}
+.recResults {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.recResults button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  padding: 9px 11px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.recPicked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.recPicked button {
+  border: 0;
+  background: none;
+  color: var(--forest);
+  text-decoration: underline;
+  font-size: 12px;
+  cursor: pointer;
+}
+.recPair {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 16px;
+  padding: 12px;
+}
+.recSides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.recSides div {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+.recSides small {
+  color: #71827a;
+  font-size: 11px;
+}
+.recPreview h3 {
+  margin: 14px 0 4px;
+}
+.recPreview ul {
+  margin: 2px 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: grid;
+  gap: 3px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .recItem {
+    transition: background 0.15s;
+  }
+}

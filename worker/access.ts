@@ -15,7 +15,10 @@ const CERT_TTL_MS = 10 * 60 * 1000;
 let certCache: { domain: string; keys: Map<string, CryptoKey>; fetchedAt: number } | null = null;
 
 function base64UrlDecode(value: string): Uint8Array<ArrayBuffer> {
-  const base64 = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const base64 = value
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(value.length / 4) * 4, "=");
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }
 
