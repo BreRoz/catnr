@@ -8,7 +8,8 @@ export default defineConfig({
   // One shared local database, so the flows run in order, one at a time.
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // No retries: the flows share one database, so a retry would start from the records the failed attempt left behind and fail for a different reason.
+  retries: 0,
   timeout: 60_000,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {

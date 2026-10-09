@@ -72,7 +72,7 @@ test('edit the cat and the change is kept and logged', async ({ page }) => {
   await page.getByLabel('Where is the cat now?').fill('Foster garage');
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('dialog').last().getByText('Foster garage').first()).toBeVisible();
-  await expect(page.getByRole('dialog').last().getByRole('heading', { name: 'Smoke' }).or(page.getByText('Smoke').first())).toBeVisible();
+  await expect(page.getByRole('dialog').last().getByRole('heading', { name: 'Smoke' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Changes' }).getByText(/Update/i).first()).toBeVisible();
   // and it survives a reload
   await page.reload();
