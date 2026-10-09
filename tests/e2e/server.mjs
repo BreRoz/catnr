@@ -23,6 +23,14 @@ writeFileSync(path.join(root, '.dev.vars.e2e-locked'), '# intentionally empty\n'
 await startFakeAi(AI_PORT);
 execFileSync('npx', ['wrangler', 'd1', 'migrations', 'apply', 'catnr-e2e-db', '--local', '--env', 'e2e', '--persist-to', state], { cwd: root, stdio: 'inherit', env });
 const app = spawn('npx', ['vinext', 'dev', '--port', String(APP_PORT)], { cwd: root, stdio: 'inherit', env });
+// Start the second copy only once the first is answering. vinext allows one dev server per folder (it records itself in
+// .vinext/dev/lock.json and the loser exits, which in CI left the main app down), but these two use different ports and
+// separate state, so drop that note once the first is up.
+for (let i = 0; i < 170; i++) {
+  if (await fetch(`http://localhost:${APP_PORT}/api/assistant`).then(() => true, () => false)) break;
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+}
+rmSync(path.join(root, '.vinext/dev/lock.json'), { force: true });
 // A second copy with the real (production) Access settings and its own empty state: it must refuse everyone (signin.spec.mjs).
 const locked = spawn('npx', ['vinext', 'dev', '--port', String(APP_PORT + 1)], { cwd: root, stdio: 'inherit', env: { ...env, CLOUDFLARE_ENV: 'e2e-locked', E2E_STATE_DIR: path.join(state, 'locked') } });
 const stop = () => { app.kill('SIGTERM'); locked.kill('SIGTERM'); rmSync(path.join(root, '.dev.vars.e2e'), { force: true }); rmSync(path.join(root, '.dev.vars.e2e-locked'), { force: true }); process.exit(0); };
