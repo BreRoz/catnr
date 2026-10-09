@@ -72,7 +72,6 @@ export function QuickActions({ onOpen }: { onOpen: (mode: CaptureMode) => void }
   return (
     <section className="quickGrid">
       <QuickAction icon="▣" tone="photo" title="Add Photo" onClick={() => onOpen("photo")} />
-      <QuickAction icon="?" tone="ask" title="Ask Assistant" onClick={() => onOpen("ask")} />
     </section>
   );
 }
