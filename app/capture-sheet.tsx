@@ -290,7 +290,9 @@ export default function CaptureSheet({ initial, sessionId, onClose, onSaved }: P
             ? "Add what you know about this cat (optional)…"
             : mode === "mic"
               ? "What I heard appears here — you can edit it."
-              : "Type naturally…"
+              : mode === "ask"
+                ? "Ask this app anything about your TNR work."
+                : "Write normally…"
         }
       />
       {needsConfirm && reply && <ConfirmCard reply={reply} busy={busy === "confirm"} onYes={confirm} onNo={dismiss} />}
