@@ -6,7 +6,7 @@ export const http = await loadTs('app/manage/http.ts');
 const modules = {
   cats: await loadTs('app/manage/cats.ts'), colonies: await loadTs('app/manage/colonies.ts'), people: await loadTs('app/manage/people.ts'),
   events: await loadTs('app/manage/events.ts'), transactions: await loadTs('app/manage/transactions.ts'), photos: (await loadTs('app/manage/photos.ts')).makeResource(() => undefined),
-  duplicates: await loadTs('app/manage/duplicates.ts'), merges: await loadTs('app/manage/merge.ts'), reports: await loadTs('app/manage/reports.ts'),
+  duplicates: await loadTs('app/manage/duplicates.ts'), merges: await loadTs('app/manage/merge.ts'), reports: await loadTs('app/manage/reports.ts'), 'roll-call': await loadTs('app/manage/roll-call.ts'),
   export: (await loadTs('app/portability/export.ts')).resource, import: (await loadTs('app/portability/import.ts')).resource, account: (await loadTs('app/portability/account.ts')).resource,
 };
 export const { findCatPairs, findPersonPairs, findColonyPairs, editDistance } = modules.duplicates;

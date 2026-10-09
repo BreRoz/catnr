@@ -29,6 +29,7 @@ const WHAT: Record<string, string> = {
   events: "history",
   photos: "photos",
   reports: "the report",
+  "roll-call": "the roll call",
   duplicates: "possible duplicates",
   merges: "that merge",
   account: "your account details",

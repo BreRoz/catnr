@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getJson } from "./api";
 import { Message } from "./ui";
 import { formatMoney } from "../money";
+import RollCallShare from "./roll-call-share";
 import type { Report } from "../reports/queries";
 
 // Hand-written view of the report API. Money arrives as integer minor units and is only formatted here.
@@ -47,6 +48,7 @@ export default function ReportsPanel() {
     : [];
   return (
     <section aria-label="Reports">
+      <RollCallShare />
       <div className="recDates">
         <label>
           From <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />

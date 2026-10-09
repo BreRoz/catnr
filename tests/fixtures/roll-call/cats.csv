@@ -1,0 +1,11 @@
+﻿id,name,sex,age_class,appearance,distinguishing_characteristics,reproductive_significance,origin_colony_id,current_status,created_at,updated_at,archived_at
+cat-6a720c6c-4c01-41c5-b1ad-085863ee2dd6,,female,,white,,,colony-94b72a54-cdfe-4332-b6f6-bd1773198460,awaiting vet,2026-10-07T23:13:23.746Z,2026-10-07T23:13:23.746Z,
+cat-7cf8ff5a-608b-45ce-be49-6ab07fcc8a35,,male,,orange,,,colony-94b72a54-cdfe-4332-b6f6-bd1773198460,awaiting vet,2026-10-07T23:13:23.746Z,2026-10-07T23:13:23.746Z,
+cat-900102d1-22ad-4297-9f7a-8e069599dedd,,male,,orange,white patch on forehead,,colony-94b72a54-cdfe-4332-b6f6-bd1773198460,adopted,2026-10-07T23:13:23.746Z,2026-10-08T21:52:50.482Z,
+cat-28bc5b58-e57e-41c6-9063-a374255a0eb2,,female,kitten,"black tuxedo with white socks; black, chubby",missing one leg (three-legged),spayed,colony-78042dcf-e459-4f30-ac4c-97617195b834,available for adoption,2026-10-07T23:32:19.556Z,2026-10-08T21:59:27.843Z,
+cat-cf3dbb5d-e8af-422f-9dab-2323dcc213e5,Pepper,unknown,unknown,,,,,adopted,2026-10-08T21:49:11.632Z,2026-10-08T21:52:50.458Z,
+cat-3873e7e5-da82-43b1-80c5-7611f1c3027f,,male,kitten,black tuxedo,no front mittens,,,captured,2026-10-09T00:05:28.523Z,2026-10-09T00:05:28.523Z,
+cat-6687bdbc-64cd-4206-ba80-314dbb9b184f,,female,kitten,calico,,,,captured,2026-10-09T00:05:28.523Z,2026-10-09T00:05:28.523Z,
+cat-9b636edf-67c2-449f-948c-530e9cf511d0,,female,adult,great tabby,,,,captured,2026-10-09T00:05:28.523Z,2026-10-09T00:05:28.523Z,
+cat-a80565fa-e1a9-4714-83a4-649f0cae3bda,,female,kitten,Tory,,,,captured,2026-10-09T00:05:28.523Z,2026-10-09T00:05:28.523Z,
+cat-fe04540b-808b-4ec0-8ced-d455cd48fca2,,male,kitten,black tuxedo,front mittens (white paws on front),,,captured,2026-10-09T00:05:28.523Z,2026-10-09T00:05:28.523Z,
