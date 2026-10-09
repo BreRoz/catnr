@@ -7,11 +7,14 @@ const base = `http://localhost:${Number(process.env.E2E_PORT || 3100) + 1}`;
 // The second app starts cold and Playwright only waits for the first one, so give this one time to answer properly
 // (a cold dev server can reply with a 5xx while it optimises dependencies). This waits for readiness; it never relaxes a check.
 test.beforeAll(async ({ request }) => {
-  for (let i = 0; i < 60; i++) {
-    const status = await request.get(base + '/api/assistant').then((r) => r.status(), () => 0);
+  test.setTimeout(240_000); // the hook's own limit must outlast the wait below (CI runners are slow to start a second dev server)
+  let status = 0;
+  for (let i = 0; i < 180; i++) {
+    status = await request.get(base + '/api/assistant').then((r) => r.status(), () => 0);
     if (status === 401) return;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
+  throw new Error(`The locked app on ${base} never answered 401 (last status ${status}).`);
 });
 
 test('without a valid sign-in token no page and no record is served', async ({ page, request }) => {
