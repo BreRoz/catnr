@@ -83,7 +83,6 @@ export default function MoneyPanel() {
     [category, setCategory] = useState("");
   const [from, setFrom] = useState(""),
     [to, setTo] = useState(""),
-    [currency, setCurrency] = useState(""),
     [status, setStatus] = useState("active"),
     [page, setPage] = useState(1);
   const [open, setOpen] = useState<string | null>(null),
@@ -95,7 +94,6 @@ export default function MoneyPanel() {
     category,
     from,
     to,
-    currency,
     status,
     page,
     pageSize: 25,
@@ -133,7 +131,6 @@ export default function MoneyPanel() {
             onChange={f(setCategory)}
             options={categories.map((c): [string, string] => [c, c])}
           />
-          <Select label="Any currency" value={currency} onChange={f(setCurrency)} options={CURRENCIES} />
           <select className="recSelect" aria-label="Show" value={status} onChange={(e) => f(setStatus)(e.target.value)}>
             <option value="active">Counted</option>
             <option value="voided">Reversed</option>

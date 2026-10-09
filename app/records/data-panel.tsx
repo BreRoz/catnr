@@ -1,5 +1,6 @@
 "use client";
 import { useRecord } from "./hooks";
+import ShareSummary from "./share-summary";
 import ImportFlow from "./import-flow";
 import DeleteAccount, { type AccountStatus } from "./delete-account";
 import { LoadingNote, Message, when } from "./ui";
@@ -37,6 +38,14 @@ export default function DataPanel() {
         </p>
       )}
       <div className="dataCard">
+        <strong>Safe-to-share summary</strong>
+        <p>
+          For a grant, a board or a partner. It has the cats, colonies, history and money amounts, but leaves out colony addresses and map
+          pins, contact details, donor and adopter names, notes, health details and photos.
+        </p>
+        <ShareSummary />
+      </div>
+      <div className="dataCard">
         <strong>Everything (recommended)</strong>
         <p>
           One file with all your records, spreadsheets for each type, your photos, and the full change history, including what you told the
@@ -56,16 +65,6 @@ export default function DataPanel() {
             </a>
           ))}
         </div>
-      </div>
-      <div className="dataCard">
-        <strong>Safe-to-share summary</strong>
-        <p>
-          For a grant, a board or a partner. It has the cats, colonies, history and money amounts, but leaves out colony addresses and map
-          pins, contact details, donor and adopter names, notes, health details and photos.
-        </p>
-        <a className="recSecondary dataLink" href={href("download=zip&profile=shareable")} download>
-          Download the summary (.zip)
-        </a>
       </div>
 
       <h3>Bring in a spreadsheet</h3>
