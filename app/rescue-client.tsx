@@ -27,7 +27,7 @@ function newSessionId() {
   }
 }
 
-export default function Home() {
+export default function Home({ name }: { name: string }) {
   const [tab, setTab] = useState("home");
   const [catGroup, setCatGroup] = useState<CatGroup>("current");
   const [capture, setCapture] = useState<Pick<Draft, "mode" | "text" | "photo"> | null>(null);
@@ -130,11 +130,11 @@ export default function Home() {
     <main className="shell">
       <header className="topbar">
         <div className="topbarTitle">
-          <p className="eyebrow">HELLO, ARI</p>
+          <p className="eyebrow">HELLO, {name.toUpperCase()}</p>
           <h1>TNR Assistant</h1>
         </div>
         <span className="avatar" aria-hidden="true">
-          A
+          {name[0]?.toUpperCase()}
         </span>
       </header>
       {banner && <ErrorBanner banner={banner} onDismiss={() => setBanner(null)} />}

@@ -219,3 +219,13 @@ test('the Cats tab keeps adopted cats apart from current ones; every other statu
   assert.match(list, /Adopted cats/);
   assert.match(list, /role="tablist"/);
 });
+
+// ---- Greeting uses the signed-in person's name ----
+
+test('the greeting name is a friendly first name taken from the sign-in email', async () => {
+  const { firstNameFromEmail } = await loadTs('app/display-name.ts');
+  assert.equal(firstNameFromEmail('ari@gmail.com'), 'Ari');
+  assert.equal(firstNameFromEmail('Jane.Doe@x.org'), 'Jane');
+  assert.equal(firstNameFromEmail('MARK_smith+tnr@x.org'), 'Mark');
+  assert.equal(firstNameFromEmail('123@x.org'), 'there');
+});
