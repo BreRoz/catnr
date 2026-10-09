@@ -157,7 +157,7 @@ h1 {
   gap: 12px;
   margin: 16px 0;
 }
-.quickGrid button {
+.quickGrid > button {
   border: 1px solid var(--line);
   background: #fff;
   border-radius: 18px;
@@ -169,11 +169,10 @@ h1 {
   text-align: left;
   box-shadow: 0 4px 12px #273e3520;
 }
-.quickGrid strong,
-.quickGrid strong {
+.quickGrid > button strong {
   font-size: 16px;
 }
-.quickGrid b {
+.quickGrid > button b {
   color: #90a098;
   font-size: 22px;
 }
