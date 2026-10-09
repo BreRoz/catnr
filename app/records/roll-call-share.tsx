@@ -16,7 +16,7 @@ const localDay = () => {
 };
 
 /** Builds the 1080×1350 weekly "roll call" picture from the records, then shares or downloads it as a PNG. */
-export default function RollCallShare() {
+export default function RollCallShare({ bare = false }: { bare?: boolean }) {
   const [frame, setFrame] = useState<TimeFrame>("7d");
   const [start, setStart] = useState(""),
     [end, setEnd] = useState("");
@@ -68,11 +68,14 @@ export default function RollCallShare() {
     }
   }
 
+  const Wrap = bare ? "div" : "details";
   return (
-    <details className="dataCard">
-      <summary>
-        <strong>Share a roll call</strong>
-      </summary>
+    <Wrap className={bare ? undefined : "dataCard"}>
+      {!bare && (
+        <summary>
+          <strong>Share a roll call</strong>
+        </summary>
+      )}
       <p>A picture of the cats you helped, with the key numbers, for social media or donors.</p>
       <label>
         Time frame{" "}
@@ -118,6 +121,6 @@ export default function RollCallShare() {
           </button>
         </>
       )}
-    </details>
+    </Wrap>
   );
 }

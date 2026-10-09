@@ -1,5 +1,6 @@
 import type { CaptureMode } from "../capture-sheet";
 import type { Draft } from "../drafts";
+import ShareRollCall from "./share-roll-call";
 import TodayCalendar from "./today-calendar";
 
 /** The big "What happened today?" card with the two ways to start an update. */
@@ -72,6 +73,7 @@ export function QuickActions({ onOpen }: { onOpen: (mode: CaptureMode) => void }
   return (
     <section className="quickGrid">
       <QuickAction icon="▣" tone="photo" title="Add Photo" onClick={() => onOpen("photo")} />
+      <ShareRollCall />
     </section>
   );
 }
