@@ -50,7 +50,7 @@ if (!offline) {
   const secrets = wrangler(['secret', 'list', '--format', 'json', ...target.envFlag], { json: true, allowFail: true });
   if (!secrets) add('WARN', 'Secrets', 'could not list secrets (is wrangler logged in?)');
   else {
-    const names = secrets.map((s) => s.name), allowed = new Set(['OPENROUTER_API_KEY', 'OPENAI_API_KEY']);
+    const names = secrets.map((s) => s.name), allowed = new Set(['OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'SESSION_SECRET']);
     const strays = names.filter((n) => !allowed.has(n));
     add(strays.length ? 'FAIL' : 'PASS', 'Secrets', strays.length ? `unexpected secret name(s): ${strays.map((n) => (/sk-|key-/i.test(n) ? '"<a key pasted as a NAME>"' : n)).join(', ')} — a pasted key was used as a secret name; rotate that key and delete the secret` : 'only expected secret names exist');
     if (target.name === 'production') add(names.includes('OPENROUTER_API_KEY') || names.includes('OPENAI_API_KEY') ? 'PASS' : 'WARN', 'Secrets', names.includes('OPENROUTER_API_KEY') ? 'OPENROUTER_API_KEY exists (the app uses it only on the server)' : 'no AI provider key set: the assistant runs in simple-text fallback mode');
