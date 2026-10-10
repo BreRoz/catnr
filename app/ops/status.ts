@@ -5,8 +5,8 @@ type D1 = D1Database;
 
 export type OpsEnv = {
   ENVIRONMENT?: string;
-  ACCESS_TEAM_DOMAIN?: string;
-  ACCESS_AUD?: string;
+  GOOGLE_CLIENT_ID?: string;
+  SESSION_SECRET?: string;
   OPENROUTER_API_KEY?: string;
   OPENAI_API_KEY?: string;
   AI_DISABLED?: string;
@@ -26,7 +26,7 @@ export async function opsStatus(db: D1, env: OpsEnv, now = new Date()) {
   ]);
   return {
     environment: env.ENVIRONMENT || "unset",
-    signIn: { configured: !!(env.ACCESS_TEAM_DOMAIN?.trim() && env.ACCESS_AUD?.trim()) },
+    signIn: { configured: !!(env.GOOGLE_CLIENT_ID?.trim() && env.SESSION_SECRET?.trim()) },
     database: { reachable: true, migrationsApplied: migrations?.n ?? null, latestMigration: migrations?.latest ?? null },
     ai: {
       providerConfigured: !!(env.OPENROUTER_API_KEY || env.OPENAI_API_KEY),

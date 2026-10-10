@@ -29,7 +29,7 @@ export async function observe(db: D1, input: { pathname: string; status: number;
   });
 }
 
-/** A request the worker itself refused before the app ran (missing or invalid Access token). */
+/** A request the worker itself refused before the app ran (missing or invalid sign-in session). */
 export async function recordAuthFailure(db: D1, pathname: string, status: number, detail: string) {
   await recordEvent((await storageFull(db)) ? null : db, { kind: "auth_failure", route: routeLabel(pathname), status, detail });
 }

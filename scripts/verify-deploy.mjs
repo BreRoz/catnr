@@ -17,10 +17,9 @@ const prodDb = config.d1_databases?.[0], stagingDb = stagingConfig.d1_databases?
 add(mine.vars?.ENVIRONMENT === target.name ? 'PASS' : 'FAIL', 'Config', `ENVIRONMENT is "${mine.vars?.ENVIRONMENT}" (expected "${target.name}")`);
 add(mine.d1_databases?.[0]?.database_name === target.database ? 'PASS' : 'FAIL', 'Config', `database binding points at ${mine.d1_databases?.[0]?.database_name} (expected ${target.database})`);
 add(prodDb && stagingDb && prodDb.database_id !== stagingDb.database_id ? 'PASS' : 'FAIL', 'Config', 'staging and production use different databases');
-add(stagingConfig.vars?.ACCESS_AUD !== config.vars?.ACCESS_AUD || !stagingConfig.vars?.ACCESS_AUD ? 'PASS' : 'FAIL', 'Config', 'staging does not share production’s Access application');
 add(stagingConfig.name && stagingConfig.name !== config.name ? 'PASS' : 'FAIL', 'Config', 'staging is a separate worker from production');
 if (target.name === 'production') {
-  add(config.vars?.ACCESS_TEAM_DOMAIN && config.vars?.ACCESS_AUD ? 'PASS' : 'FAIL', 'Authentication', 'Cloudflare Access team and application are configured (otherwise the site refuses everyone)');
+  add(config.vars?.GOOGLE_CLIENT_ID ? 'PASS' : 'FAIL', 'Authentication', 'Google sign-in client ID is configured (otherwise the site refuses everyone)');
   add(config.triggers?.crons?.length ? 'PASS' : 'FAIL', 'Jobs', `daily clean-up is scheduled (${(config.triggers?.crons || []).join(', ') || 'none'})`);
 }
 const keyLike = (obj) => Object.entries(obj || {}).filter(([k, v]) => /key|secret|token|password/i.test(k) || /\bsk-[A-Za-z0-9_-]{8,}/.test(String(v))).map(([k]) => k);
@@ -83,26 +82,25 @@ if (!offline) {
       add(ok(r, location) ? 'PASS' : 'FAIL', 'Authentication', `${label}: HTTP ${r.status}${location ? ` → ${new URL(location, url).host}` : ''} ${explain}`);
     } catch (error) { add('WARN', 'Authentication', `${label}: could not reach ${url} (${error.message})`); }
   };
-  const team = config.vars?.ACCESS_TEAM_DOMAIN;
   const blocked = target.name === 'production'
-    ? (r, loc) => (r.status === 302 && loc.includes(team)) || r.status === 401 || r.status === 403
+    ? (r, loc) => (r.status === 302 && loc.includes('/signin')) || r.status === 401 || r.status === 403
     : (r) => r.status === 503 || r.status === 302 || r.status === 401 || r.status === 403;
-  const never = { 'x-catnr-user-id': 'intruder@example.com', 'x-catnr-user-email': 'intruder@example.com', 'cf-access-jwt-assertion': 'x.y.z' };
+  const never = { 'x-catnr-user-id': 'intruder@example.com', 'x-catnr-user-email': 'intruder@example.com', cookie: 'catnr_session=forged.value' };
   await probe('anonymous visit to the app', target.url + '/', {}, blocked, 'sends visitors to sign in, not to the app');
   await probe('anonymous API call', target.url + '/api/manage/cats', {}, blocked, 'is refused');
-  await probe('API call with forged identity headers and a fake token', target.url + '/api/manage/cats', { headers: never }, blocked, 'is refused (headers cannot be forged)');
+  await probe('API call with forged identity headers and a fake session', target.url + '/api/manage/cats', { headers: never }, blocked, 'is refused (headers cannot be forged)');
   await probe('anonymous status page', target.url + '/_ops/status', {}, blocked, 'is refused');
   await probe('anonymous photo fetch', target.url + '/api/manage/photos?image=x', {}, blocked, 'is refused');
   const history = wrangler(['deployments', 'list', ...target.envFlag], { allowFail: true });
   if (history) add('PASS', 'Release', `latest deployment: ${(history.match(/Created:\s+(\S+)[\s\S]*?(?=\n\nCreated:|$)/g) || []).pop()?.match(/Created:\s+(\S+)/)?.[1] ?? 'unknown'}`);
 }
 
-// ---- What a script cannot see: the Access application itself (needs the Zero Trust dashboard) ----
+// ---- What a script cannot see: the Google and Cloudflare dashboards ----
 if (target.name === 'production') for (const text of [
-  'Zero Trust → Access → Applications → catnr: the policy allows ONLY the intended email addresses (no "Everyone", no wildcard domain).',
-  'Same application: Session duration is what you want (shorter = safer, longer = fewer sign-ins on a phone). 1 month is reasonable for one volunteer.',
-  'Same application: the application domain covers catnr.bre999.workers.dev; the AUD tag matches ACCESS_AUD in wrangler.jsonc (PASS above shows the live site rejects anything without a valid token).',
-  'Workers → catnr → Settings → Domains & Routes: workers.dev and Preview URLs are fine (the worker refuses requests without a valid Access token anyway), but a custom domain would also need to be added to the Access application.',
+  'Google Cloud Console → APIs & Services → Credentials → the Web OAuth client: Authorized JavaScript origins lists https://catnr.bre999.workers.dev (and nothing you do not use).',
+  'Same project → OAuth consent screen: publishing status is "In production" (in "Testing" only listed test users can sign in, and sign-in expires weekly).',
+  'Zero Trust → Access → Applications: the old catnr application has been DELETED (a leftover application would still put Cloudflare’s login page in front of the new one).',
+  'Workers → catnr → Settings → Variables and Secrets: SESSION_SECRET exists (the live check above shows the site refuses everyone without it).',
   'Account → Billing/Notifications: a usage alert exists (AI provider spend is capped in the OpenRouter dashboard, not here).',
 ]) add('CONFIRM', 'Dashboard', text);
 

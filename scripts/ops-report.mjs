@@ -25,7 +25,7 @@ const calls = n('ai_call'), bad = n('ai_failure');
 if (bad && calls && bad / calls >= 0.2) attention.push(`assistant failing ${Math.round((100 * bad) / calls)}% of the time (${bad} of ${calls}) — check the provider, or switch the assistant off (docs/RUNBOOK.md)`);
 if (n('limit_hit')) attention.push(`${n('limit_hit')} usage limit(s) hit — is something looping, or is it simply a busy day?`);
 if (replays && replays.n >= 20) attention.push(`${replays.n} retried requests from one user — a client may be stuck in a retry loop`);
-if (n('auth_failure') >= 5) attention.push(`${n('auth_failure')} refused sign-ins that reached the app — someone is probing, or Access is misconfigured`);
+if (n('auth_failure') >= 5) attention.push(`${n('auth_failure')} refused sign-ins that reached the app — someone is probing, or sign-in is misconfigured`);
 if (n('job_failure') || lastJobFail && (!lastJob || lastJobFail > lastJob)) attention.push('the daily clean-up job failed');
 if (target.name === 'production' && (!lastJob || Date.now() - new Date(lastJob) > 26 * 3600_000)) attention.push(`the daily clean-up job has not reported success in over 26 hours (last: ${lastJob ?? 'never'})`);
 for (const f of flags) if (!f.enabled) attention.push(`"${f.name}" is switched OFF since ${f.updated_at}${f.reason ? ` (${f.reason})` : ''}`);

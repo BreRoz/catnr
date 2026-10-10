@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useAction } from "./hooks";
+import SignOut from "./sign-out";
 import { Message, when } from "./ui";
 
 export type AccountStatus = {
@@ -27,9 +28,7 @@ export default function DeleteAccount({ status, onChanged }: { status: AccountSt
     return (
       <div className="dataCard danger" role="status">
         <p>{deleted}</p>
-        <a className="primary dataLink" href="/cdn-cgi/access/logout">
-          Sign out
-        </a>
+        <SignOut className="primary dataLink" />
       </div>
     );
   const total = Object.entries(status.counts).filter(([k]) => k !== "record_changes" && k !== "corrections" && k !== "merges");

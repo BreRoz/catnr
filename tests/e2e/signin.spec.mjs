@@ -1,5 +1,5 @@
-// The deployed configuration (Cloudflare Access settings present) must refuse anyone who is not signed in.
-// Runs against a second copy of the app that keeps the real production Access settings.
+// The deployed configuration (Google sign-in configured) must refuse anyone who is not signed in.
+// Runs against a second copy of the app that has sign-in configured but no session.
 import { test, expect } from '@playwright/test';
 
 const base = `http://localhost:${Number(process.env.E2E_PORT || 3100) + 1}`;
@@ -18,16 +18,17 @@ test.beforeAll(async ({ request }) => {
 });
 
 test('without a valid sign-in token no page and no record is served', async ({ page, request }) => {
-  const response = await page.goto(base + '/');
-  expect(response.status()).toBe(401);
-  await expect(page.getByText('Please sign in to Cat Tracker.')).toBeVisible();
+  // a person opening the site is sent to the sign-in page, never shown the app
+  await page.goto(base + '/');
+  await expect(page).toHaveURL(base + '/signin');
+  await expect(page.getByText('Sign in with your Google account')).toBeVisible();
   await expect(page.getByText('What happened today?')).toHaveCount(0);
   for (const path of ['/api/assistant', '/api/manage/cats', '/api/manage/export?format=json']) {
     expect((await request.get(base + path)).status(), path).toBe(401);
   }
-  // a forged token and a forged identity header do not help
-  const forged = await request.get(base + '/api/assistant', { headers: { 'cf-access-jwt-assertion': 'aaa.bbb.ccc', 'x-catnr-user-id': 'ari@example.com', 'x-catnr-user-email': 'ari@example.com' } });
-  expect([401, 503]).toContain(forged.status()); // refused: invalid token, or Access' keys unreachable (fails closed)
+  // a forged session cookie and a forged identity header do not help
+  const forged = await request.get(base + '/api/assistant', { headers: { cookie: 'catnr_session=forged.value', 'x-catnr-user-id': 'ari@example.com', 'x-catnr-user-email': 'ari@example.com' } });
+  expect(forged.status()).toBe(401);
   const write = await request.post(base + '/api/assistant', { data: { input: 'hello' }, headers: { 'x-catnr-user-id': 'ari@example.com', 'x-catnr-user-email': 'ari@example.com' } });
   expect(write.status()).toBe(401);
 });

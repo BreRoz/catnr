@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 
 export type CatnrUser = { userId: string; email: string };
 
-// Set by worker/index.ts only after it verifies the Cloudflare Access token.
+// Set by worker/index.ts only after it verifies the sign-in session cookie.
 const USER_ID_HEADER = "x-catnr-user-id";
 const USER_EMAIL_HEADER = "x-catnr-user-email";
 

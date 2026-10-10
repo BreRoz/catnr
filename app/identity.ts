@@ -1,6 +1,6 @@
 /**
  * Who is making this request. The identity headers are set only by worker/index.ts after it has verified the
- * Cloudflare Access token; nothing in a request body is ever used to decide ownership.
+ * Google sign-in session cookie; nothing in a request body is ever used to decide ownership.
  */
 export function ownerFrom(req: Request): string | null {
   const owner = req.headers.get("x-catnr-user-id");

@@ -1,13 +1,14 @@
 /** Cloudflare Worker entry point: checks who is calling, then hands the request to the app. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { verifyAccessJwt } from "./access";
+import { readSession } from "./session";
+import { handleAuthRoute, PUBLIC_PATHS, type AuthEnv } from "./signin";
 import { purgeExpired } from "../app/portability/retention";
 import { observe, recordAuthFailure } from "../app/ops/observe";
 import { recordEvent } from "../app/ops/log";
 import { opsStatus, type OpsEnv } from "../app/ops/status";
 
-interface Env extends OpsEnv {
+interface Env extends OpsEnv, AuthEnv {
   ASSETS: Fetcher;
   DB: D1Database;
   IMAGES?: {
@@ -34,10 +35,10 @@ async function withIdentity(request: Request, env: Env): Promise<Request | Respo
   headers.delete(USER_ID_HEADER);
   headers.delete(USER_EMAIL_HEADER);
 
-  const teamDomain = env.ACCESS_TEAM_DOMAIN?.trim();
-  const audience = env.ACCESS_AUD?.trim();
-  if (!teamDomain || !audience) {
-    // Local development runs without Access; deployed workers fail closed.
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const secret = env.SESSION_SECRET?.trim();
+  if (!clientId || !secret) {
+    // Local development runs without sign-in; deployed workers fail closed.
     if (!LOCAL_HOSTS.has(new URL(request.url).hostname)) {
       return new Response("Sign-in is not configured for this site yet.", { status: 503 });
     }
@@ -46,19 +47,15 @@ async function withIdentity(request: Request, env: Env): Promise<Request | Respo
     return new Request(request, { headers });
   }
 
-  let identity: Awaited<ReturnType<typeof verifyAccessJwt>>;
-  try {
-    identity = await verifyAccessJwt(request.headers.get("cf-access-jwt-assertion"), teamDomain, audience);
-  } catch {
-    // Access' public keys could not be fetched. Refuse (fail closed) with a clear, retryable answer.
-    return new Response("Sign-in is temporarily unavailable. Please try again in a minute.", {
-      status: 503,
-      headers: { "retry-after": "30" },
-    });
+  const email = await readSession(request.headers.get("cookie"), secret);
+  if (!email) {
+    // A person opening the site goes to the sign-in page; scripts and API calls get a plain 401.
+    const wantsPage = request.method === "GET" && (request.headers.get("accept") ?? "").includes("text/html");
+    if (wantsPage) return Response.redirect(new URL("/signin", request.url).toString(), 302);
+    return new Response("Please sign in to Cat Tracker.", { status: 401 });
   }
-  if (!identity) return new Response("Please sign in to Cat Tracker.", { status: 401 });
-  headers.set(USER_ID_HEADER, identity.userId);
-  headers.set(USER_EMAIL_HEADER, identity.email);
+  headers.set(USER_ID_HEADER, email);
+  headers.set(USER_EMAIL_HEADER, email);
   return new Request(request, { headers });
 }
 
@@ -86,17 +83,25 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    if (PUBLIC_PATHS.has(url.pathname)) {
+      const authRoute = await handleAuthRoute(request, env);
+      if (authRoute) return hardened(authRoute, url);
+    }
+
     const started = Date.now();
     const authed = await withIdentity(request, env);
     if (authed instanceof Response) {
-      ctx.waitUntil(
-        recordAuthFailure(
-          env.DB,
-          url.pathname,
-          authed.status,
-          authed.status === 503 ? "sign-in unavailable or not configured" : "missing or invalid Access token",
-        ),
-      );
+      // Sending a signed-out visitor to the sign-in page is normal, not a failure worth counting.
+      if (authed.status !== 302) {
+        ctx.waitUntil(
+          recordAuthFailure(
+            env.DB,
+            url.pathname,
+            authed.status,
+            authed.status === 503 ? "sign-in not configured" : "missing or invalid session",
+          ),
+        );
+      }
       return hardened(authed, url);
     }
     request = authed;

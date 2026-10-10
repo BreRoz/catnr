@@ -29,11 +29,11 @@ operating guide is [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
  phone / browser
       │  HTTPS
       ▼
- Cloudflare Access ── verifies the person, signs every request with a JWT
+ Google sign-in ───── the person signs in once; the Worker issues a signed session cookie
       │
       ▼
  Cloudflare Worker  (worker/index.ts)
-   1. verifies the Access JWT (worker/access.ts) and sets the trusted identity headers
+   1. checks the session cookie (worker/session.ts) and sets the trusted identity headers
    2. security headers, body-size cap, usage observation (app/ops)
    3. hands the request to the app ─────────────┐
       │                                          ▼
@@ -49,7 +49,7 @@ operating guide is [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 **Key rules** (see [`docs/`](docs/) for the reasoning behind each):
 
 1. **Identity comes only from the Worker.** `worker/index.ts` strips any client-supplied identity headers and sets
-   `x-catnr-user-id` / `x-catnr-user-email` only after verifying Cloudflare Access. Every query is limited to that owner;
+   `x-catnr-user-id` / `x-catnr-user-email` only after verifying the sign-in session. Every query is limited to that owner;
    the database also enforces ownership with composite foreign keys. A request body can never name its owner.
 2. **The AI never touches the database.** It returns a *plan*; `validation.ts` checks it; `record-writer.ts` is the only
    code that turns a validated plan into writes.
@@ -62,7 +62,7 @@ operating guide is [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 | Path | What lives there |
 |---|---|
-| `worker/` | Worker entry (`index.ts`) and Access JWT verification (`access.ts`) |
+| `worker/` | Worker entry (`index.ts`), Google token check (`google.ts`), session cookie (`session.ts`) and the sign-in page/routes (`signin.ts`) |
 | `app/identity.ts`, `app/config.ts`, `app/vocabulary.ts` | Who is asking · typed AI settings read from the environment · lists shared by screens, manual records and AI |
 | `app/rescue-client.tsx`, `app/home/` | The home screen: a container plus small components (hero, record list, impact summary, nav, banner) |
 | `app/capture-sheet.tsx`, `correction-sheet.tsx`, `cat-history-sheet.tsx`, `clarification-cards.tsx`, `confirm-card.tsx`, `dialog.tsx` | Capture, correction, history and confirmation UI |
@@ -115,7 +115,7 @@ npm run dev                  # http://localhost:3000
 - The local database lives in `.wrangler/` (git-ignored). `npm run db:reset:local` rebuilds it from the migrations
   (an older database is copied aside first).
 - Locally there is no sign-in: requests from `localhost` get the identity `dev@localhost`. A deployed Worker with no
-  Access settings refuses every request (503) instead.
+  sign-in settings (`GOOGLE_CLIENT_ID` and `SESSION_SECRET`) refuses every request (503) instead.
 - With no AI key, the assistant uses its built-in fallback (short updates about a named cat, simple questions). To try
   the real AI locally, put a key in `.dev.vars` (below).
 - Never put real rescue data in a local or staging database.
@@ -128,8 +128,8 @@ in `.dev.vars` (local, git-ignored). **Never commit a secret.** [`.env.example`]
 | Name | Kind | Purpose |
 |---|---|---|
 | `ENVIRONMENT` | var | `production`, `staging` or `e2e…`; checked by the deploy and verify scripts |
-| `ACCESS_TEAM_DOMAIN` | var | Your Cloudflare Zero Trust team domain (`<team>.cloudflareaccess.com`) |
-| `ACCESS_AUD` | var | The Access application's audience tag. Empty = no sign-in (local only; deployed Workers refuse requests) |
+| `GOOGLE_CLIENT_ID` | var | The public OAuth client ID of your Google sign-in. Empty = no sign-in (local only; deployed Workers refuse requests) |
+| `SESSION_SECRET` | **secret** | Signs the sign-in cookie (`npx wrangler secret put SESSION_SECRET`). Rotating it signs everyone out |
 | `OPENROUTER_API_KEY` | **secret** | Preferred AI provider key |
 | `OPENROUTER_MODEL` | optional | Default `openai/gpt-5-mini` |
 | `OPENAI_API_KEY` | **secret** | Optional direct OpenAI fallback (used only if no OpenRouter key) |
@@ -165,19 +165,20 @@ model (ownership, foreign keys, money, audit).
 
 ## Authentication
 
-Sign-in is **Cloudflare Access** in front of the Worker. Every request must carry an Access JWT; the Worker verifies it
-against your team's public keys and rejects anything else (fail closed: 401 without a valid token, 503 if Access is not
-configured or its keys are unreachable).
+Sign-in is **Google**. The sign-in page (`/signin`) gets a signed ID token from Google; the Worker verifies it against
+Google's public keys (right app, not expired, verified email) and sets an HttpOnly, Secure, SameSite=Lax session cookie
+signed with `SESSION_SECRET` (30 days). Every other route requires that cookie: a person without it is sent to `/signin`,
+scripts get 401, and a site with no client ID or secret refuses everyone (503). **Anyone with a Google account can sign
+up**; each person sees only their own records.
 
-One-time setup, in the Cloudflare dashboard:
+One-time setup:
 
-1. **Zero Trust → Access → Applications → Add → Self-hosted.** Domain: the Worker's hostname
-   (`<worker>.<account>.workers.dev` or your custom domain).
-2. Add a policy allowing **only** the people who should have access (by email).
-3. Copy the application's **Audience (AUD) tag** and your **team domain**.
-4. Put them in `wrangler.jsonc` as `ACCESS_AUD` and `ACCESS_TEAM_DOMAIN` (for the matching environment) and deploy.
-5. Set session length and review the policy in the dashboard. `npm run verify` lists these as **CONFIRM** items because
-   they cannot be read from code.
+1. **Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application.** Authorized
+   JavaScript origin: `https://catnr.bre999.workers.dev` (no redirect URI is needed). Set the consent screen to *In production*.
+2. Put the client ID in `wrangler.jsonc` as `GOOGLE_CLIENT_ID`.
+3. `npx wrangler secret put SESSION_SECRET` (paste a long random string, e.g. from `openssl rand -base64 48`).
+4. Delete the old Cloudflare Access application (Zero Trust → Access → Applications), otherwise Cloudflare's login page still sits in front of the app.
+5. Deploy, then `npm run verify`.
 
 The user's identity (`userId`, email) is the owner of every record. Details: [`docs/STAGE-1-OWNERSHIP.md`](docs/STAGE-1-OWNERSHIP.md).
 
@@ -241,7 +242,7 @@ taken **and proven to restore**; migrations apply; the build is really the produ
 | Worker | `catnr` | `catnr-staging` |
 | Database | `catnr-db` | `catnr-staging-db` (starts empty) |
 | AI key | yes | **none, on purpose** |
-| Sign-in | Cloudflare Access | closed (503) until you create a separate Access application and fill `ACCESS_*` under `env.staging` |
+| Sign-in | Google | closed (503) until `GOOGLE_CLIENT_ID` under `env.staging` is filled in and `SESSION_SECRET` is set for it |
 | Data | real | made-up only |
 
 Configuration for both is in [`wrangler.jsonc`](wrangler.jsonc) (`env.staging`). Never copy production data to staging.
@@ -280,7 +281,7 @@ A migration cannot be "un-run": restore with Time Travel to just before it, or f
 The site includes a web app manifest and icons, so it can be added to the Home Screen (Safari: Share → Add to Home
 Screen) and opens full-screen with the correct safe areas. There is **no service worker**: the app always needs a
 connection, because its value (turning speech into validated records) is server-side. See [`docs/STAGE-9-USABILITY.md`](docs/STAGE-9-USABILITY.md).
-The manifest is requested with credentials because the whole site sits behind Cloudflare Access.
+The manifest is requested with credentials because the whole site sits behind sign-in.
 
 ## Known limitations
 
@@ -288,9 +289,10 @@ The manifest is requested with credentials because the whole site sits behind Cl
 - **AI quality is checked by hand.** The automated tests use a scripted AI, so they prove the app handles good, unclear
   and invalid answers correctly — not how well the real model chooses between similar cats. Re-check with real phrases
   periodically.
-- **Access policy cannot be verified from code.** Who is allowed, session length and the staging application are set in
-  the Zero Trust dashboard (`npm run verify` lists them as CONFIRM items). Staging is unusable in a browser until its
-  own Access application exists.
+- **Open sign-up.** Any Google account can create its own empty space. The AI limits include a shared 400/day ceiling, so
+  strangers could use up the day's assistant budget; watch `npm run ops:report`. A shared approved-email list can be added later.
+- **Google settings cannot be verified from code.** The OAuth client's allowed origin and the consent-screen status live
+  in the Google Cloud Console (`npm run verify` lists them as CONFIRM items).
 - **Browser tests run Chromium** at phone size, not Safari/WebKit or a real touch device. Manual phone procedures are in
   the testing doc.
 - **Photos live in D1**, limited to ~1.3 MB each, so very large photo libraries will need a bucket in future.
@@ -301,8 +303,8 @@ The manifest is requested with credentials because the whole site sits behind Cl
 - **Quarantined legacy rows** from before ownership existed are kept but frozen; there is no tool to claim them.
 - **Request-size cap** is enforced on `Content-Length`; a chunked upload without one is bounded only by the app's own
   checks and Cloudflare's edge limit.
-- **Not an App Store app.** A native wrapper (e.g. Capacitor) is possible later; sign-in through Cloudflare Access would
-  need a plan for an in-app web view, and Apple requires real native functionality beyond a website.
+- **Not an App Store app.** A native wrapper (e.g. Capacitor) is possible later; Google sign-in is usually blocked inside
+  embedded web views, so a native wrapper would need native Google sign-in, and Apple requires real native functionality beyond a website.
 
 ## Documentation index
 

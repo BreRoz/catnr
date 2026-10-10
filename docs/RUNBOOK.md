@@ -5,8 +5,8 @@ been run at least once against staging unless marked **(documented, not run on p
 
 | Environment | Worker | Database | AI key | Sign-in |
 |---|---|---|---|---|
-| production | `catnr` — https://catnr.bre999.workers.dev | `catnr-db` | yes (`OPENROUTER_API_KEY`) | Cloudflare Access |
-| staging | `catnr-staging` — https://catnr-staging.bre999.workers.dev | `catnr-staging-db` (starts empty) | **none, on purpose** | closed (503) until you create a separate Access app and fill `ACCESS_*` under `env.staging` in `wrangler.jsonc` |
+| production | `catnr` — https://catnr.bre999.workers.dev | `catnr-db` | yes (`OPENROUTER_API_KEY`) | Google |
+| staging | `catnr-staging` — https://catnr-staging.bre999.workers.dev | `catnr-staging-db` (starts empty) | **none, on purpose** | closed (503) until `GOOGLE_CLIENT_ID` under `env.staging` in `wrangler.jsonc` is filled in and `SESSION_SECRET` is set |
 | local | `npm run dev` | local SQLite in `.wrangler/` | `.dev.vars` | none (dev identity `dev@localhost`) |
 
 Never copy production data into staging or local. Use made-up records (the restore drills below do).
@@ -36,7 +36,7 @@ Stored in the `ops_events` table for 90 days and also written to Cloudflare’s 
 | Database errors | `db_error` | any |
 | Failed AI calls | `ai_failure` (provider down/timeout), `ai_invalid` (unusable answer) | >20 % of calls fail |
 | Failed/rejected uploads | `upload_rejected` | repeated from one user |
-| Authentication failures | `auth_failure` (requests that reached the worker without a valid Access token) | 5+ a day |
+| Authentication failures | `auth_failure` (requests that reached the worker without a valid sign-in session) | 5+ a day |
 | Latency | `duration_ms` on `ai_call`; `slow_request` for any API call over 5 s | p95 climbing |
 | Job failures | `job_ok` / `job_failure` from the daily 04:15 UTC clean-up | no `job_ok` for 26 h, or any failure |
 | Repeated retries | `retry_replay` (a retry safely answered from its receipt) | 20+ from one user |
@@ -147,8 +147,8 @@ It proves the file first, splits the large photo rows (D1 rejects any single SQL
 
 | Symptom | First move |
 |---|---|
-| Everyone gets 503 “Sign-in is not configured” | `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD` missing from the deployed config. `npm run verify`. |
-| Everyone gets 503 “Sign-in is temporarily unavailable” | Cloudflare Access’ key service is unreachable; it fails closed and recovers by itself. Check status.cloudflare.com. |
+| Everyone gets 503 “Sign-in is not configured” | `GOOGLE_CLIENT_ID` (config) or `SESSION_SECRET` (secret) is missing. `npm run verify`. |
+| Everyone gets 503 “Sign-in is temporarily unavailable” | Google’s key service could not be reached while signing in; it fails closed and recovers by itself. |
 | “The assistant is unavailable” | `npm run ops:report`; if the provider is down the pause is automatic; if it is stuck, switch AI off. |
 | Costs rising | `npm run flag -- ai off`, rotate the key, then `npm run ops:report` to see which person/hour. |
 | Records look wrong | Do not restore yet. In the app use History/Undo; if that is not enough, take `npm run backup` first, then Time Travel. |

@@ -28,7 +28,7 @@ const WILL_DELETE = [
   "The complete change history, corrections and merge records, and the log of your downloads.",
 ];
 const WILL_REMAIN = [
-  "Your sign-in. Cat Tracker never held your password: sign-in is handled by Cloudflare Access, and removing your access there is a separate step for whoever manages it.",
+  "Your sign-in. Cat Tracker never held your password: sign-in is handled by Google, and your Google account is not touched. Signing in again with the same Google account starts a fresh, empty Cat Tracker.",
   "A receipt saying that an account was deleted, with the date and how many records were removed. It holds no names, email addresses or content.",
   "Files you have already downloaded. They are yours; keep or delete them yourself.",
   "Backups: Cloudflare keeps short-lived database backups, so copies of deleted rows can persist there briefly before they age out.",

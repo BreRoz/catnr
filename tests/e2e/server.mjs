@@ -1,7 +1,7 @@
 // Starts everything the browser tests need and keeps it running until stopped:
 //   1. a scripted fake AI provider,
 //   2. a fresh local database built from the checked-in migrations only,
-//   3. the app itself, as the "e2e" wrangler environment (no Access sign-in, localhost identity, fake AI URL).
+//   3. the app itself, as the "e2e" wrangler environment (no sign-in, localhost identity, fake AI URL).
 // Playwright launches this through `webServer` (see playwright.config.mjs).
 import { spawn, execFileSync } from 'node:child_process';
 import { rmSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -18,8 +18,8 @@ mkdirSync(state, { recursive: true });
 // Per-environment dev vars: the fake key only switches the AI path on; the URL only works because ENVIRONMENT=e2e.
 writeFileSync(path.join(root, '.dev.vars.e2e'), `OPENROUTER_API_KEY=e2e-fake-key\nAI_TEST_BASE_URL=http://127.0.0.1:${AI_PORT}/v1/chat/completions\n`);
 
-// An (empty) per-environment file stops a developer's own .dev.vars - which blanks the Access settings - from applying.
-writeFileSync(path.join(root, '.dev.vars.e2e-locked'), '# intentionally empty\n');
+// A per-environment file stops a developer's own .dev.vars from applying. The locked copy needs a session secret, otherwise sign-in counts as unconfigured and localhost is let in.
+writeFileSync(path.join(root, '.dev.vars.e2e-locked'), 'SESSION_SECRET=e2e-locked-secret-used-only-by-this-test\n');
 await startFakeAi(AI_PORT);
 execFileSync('npx', ['wrangler', 'd1', 'migrations', 'apply', 'catnr-e2e-db', '--local', '--env', 'e2e', '--persist-to', state], { cwd: root, stdio: 'inherit', env });
 const app = spawn('npx', ['vinext', 'dev', '--port', String(APP_PORT)], { cwd: root, stdio: 'inherit', env });
@@ -31,7 +31,7 @@ for (let i = 0; i < 170; i++) {
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }
 rmSync(path.join(root, '.vinext/dev/lock.json'), { force: true });
-// A second copy with the real (production) Access settings and its own empty state: it must refuse everyone (signin.spec.mjs).
+// A second copy with sign-in configured (and nobody signed in) and its own empty state: it must refuse everyone (signin.spec.mjs).
 const locked = spawn('npx', ['vinext', 'dev', '--port', String(APP_PORT + 1)], { cwd: root, stdio: 'inherit', env: { ...env, CLOUDFLARE_ENV: 'e2e-locked', E2E_STATE_DIR: path.join(state, 'locked') } });
 const stop = () => { app.kill('SIGTERM'); locked.kill('SIGTERM'); rmSync(path.join(root, '.dev.vars.e2e'), { force: true }); rmSync(path.join(root, '.dev.vars.e2e-locked'), { force: true }); process.exit(0); };
 process.on('SIGTERM', stop); process.on('SIGINT', stop);

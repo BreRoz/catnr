@@ -2,6 +2,7 @@
 import { useRecord } from "./hooks";
 import ShareSummary from "./share-summary";
 import ImportFlow from "./import-flow";
+import SignOut from "./sign-out";
 import DeleteAccount, { type AccountStatus } from "./delete-account";
 import { LoadingNote, Message, when } from "./ui";
 
@@ -84,6 +85,9 @@ export default function DataPanel() {
       <p className="recHint">
         Colony locations and contact details are private: nothing here is public, and reports and the safe-to-share summary leave them out.
       </p>
+
+      <h3>Sign out</h3>
+      <SignOut />
 
       <h3>Delete my account</h3>
       {account.data && <DeleteAccount status={account.data} onChanged={account.reload} />}

@@ -316,7 +316,7 @@ test('account deletion: explains exactly what goes and what stays', async () => 
   const s = ok(await api.get('account'));
   assert.equal(s.counts.cats, 2); assert.equal(s.counts.photos, 1); assert.ok(s.counts.record_changes > 5);
   assert.equal(s.confirmPhrase, PHRASE); assert.equal(s.waitHours, 24); assert.equal(s.request, null);
-  assert.ok(s.willDelete.length >= 3 && s.willRemain.some((l) => /Cloudflare Access/.test(l)) && s.willRemain.some((l) => /receipt/.test(l)));
+  assert.ok(s.willDelete.length >= 3 && s.willRemain.some((l) => /Google/.test(l)) && s.willRemain.some((l) => /receipt/.test(l)));
   assert.ok(s.retention.some((r) => r.id === 'money' && /charity/.test(r.why)));
   assert.equal(s.lastFullExport, null);
   await api.get('export', 'download=zip');

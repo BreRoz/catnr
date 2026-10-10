@@ -18,16 +18,15 @@
   "vars": {
     // Which deployment this is. /_ops/status shows it and scripts/verify-deploy.mjs checks it.
     "ENVIRONMENT": "production",
-    // Cloudflare Access settings. Every request must carry a valid Access
-    // token for this team and application, or the worker refuses it.
-    "ACCESS_TEAM_DOMAIN": "morning-dream-e9b3.cloudflareaccess.com",
-    "ACCESS_AUD": "115de8739c1c2e1df3adc720707a1c6bc4832797515f2e1e7174700354b313e8"
+    // Google sign-in. The OAuth client ID is public (it is shown on the sign-in page). Empty = deployed worker refuses everyone (503).
+    // SESSION_SECRET is NOT here: it is a Worker secret (npx wrangler secret put SESSION_SECRET).
+    "GOOGLE_CLIENT_ID": "314630259223-jc73fe74ihcpe61r709rb7o2egdupa08.apps.googleusercontent.com"
   },
   // Staging: a separate worker with its own empty database and no AI key, so experiments never touch
-  // real records or cost real money. It stays closed (503) until its own Access application is created
-  // and its ACCESS_* values are filled in. Build and deploy it with `npm run deploy:staging`.
+  // real records or cost real money. It stays closed (503) until its GOOGLE_CLIENT_ID is filled in and
+  // SESSION_SECRET is set (npx wrangler secret put SESSION_SECRET --env staging). Build and deploy it with `npm run deploy:staging`.
   "env": {
-    // Browser tests (tests/e2e): a throwaway local-only worker. No Access, no real AI key, its own local database.
+    // Browser tests (tests/e2e): a throwaway local-only worker. No sign-in, no real AI key, its own local database.
     // It is never deployed; the ENVIRONMENT value is what allows the fake AI provider URL.
     "e2e": {
       "name": "catnr-e2e",
@@ -35,16 +34,16 @@
       "d1_databases": [
         { "binding": "DB", "database_name": "catnr-e2e-db", "database_id": "00000000-0000-4000-8000-000000000e2e", "migrations_dir": "drizzle" }
       ],
-      "vars": { "ENVIRONMENT": "e2e", "ACCESS_TEAM_DOMAIN": "", "ACCESS_AUD": "" }
+      "vars": { "ENVIRONMENT": "e2e", "GOOGLE_CLIENT_ID": "" }
     },
-    // Browser test of the sign-in wall: Access settings are present (to a team that does not exist), so every request must be refused.
+    // Browser test of the sign-in wall: sign-in is configured, so every request without a session must be refused.
     "e2e-locked": {
       "name": "catnr-e2e-locked",
       "triggers": { "crons": [] },
       "d1_databases": [
         { "binding": "DB", "database_name": "catnr-e2e-locked-db", "database_id": "00000000-0000-4000-8000-0000000e2e10", "migrations_dir": "drizzle" }
       ],
-      "vars": { "ENVIRONMENT": "e2e-locked", "ACCESS_TEAM_DOMAIN": "locked.example.invalid", "ACCESS_AUD": "e2e-locked-audience" }
+      "vars": { "ENVIRONMENT": "e2e-locked", "GOOGLE_CLIENT_ID": "e2e-locked.apps.googleusercontent.com" }
     },
     "staging": {
       "name": "catnr-staging",
@@ -53,7 +52,7 @@
       "d1_databases": [
         { "binding": "DB", "database_name": "catnr-staging-db", "database_id": "7b9a4912-c5bc-4b3a-8351-058436838640", "migrations_dir": "drizzle" }
       ],
-      "vars": { "ENVIRONMENT": "staging", "ACCESS_TEAM_DOMAIN": "", "ACCESS_AUD": "" }
+      "vars": { "ENVIRONMENT": "staging", "GOOGLE_CLIENT_ID": "" }
     }
   }
 }

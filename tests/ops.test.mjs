@@ -256,9 +256,9 @@ test('refused sign-ins are stored, but a flood cannot fill the database', async 
 test('status report shows configuration without revealing any secret', async () => {
   const { db, d1 } = fresh();
   db.prepare("INSERT INTO ops_events(id,kind,at) VALUES('j','job_ok',?)").run(new Date().toISOString());
-  const report = await status.opsStatus(d1, { ENVIRONMENT: 'production', ACCESS_TEAM_DOMAIN: 'x.cloudflareaccess.com', ACCESS_AUD: 'aud123', OPENROUTER_API_KEY: 'sk-or-v1-supersecret0000' });
+  const report = await status.opsStatus(d1, { ENVIRONMENT: 'production', GOOGLE_CLIENT_ID: 'x.apps.googleusercontent.com', SESSION_SECRET: 'sess123supersecret', OPENROUTER_API_KEY: 'sk-or-v1-supersecret0000' });
   assert.equal(report.environment, 'production'); assert.equal(report.ai.providerConfigured, true); assert.equal(report.signIn.configured, true);
-  assert.equal(JSON.stringify(report).includes('supersecret'), false); assert.equal(JSON.stringify(report).includes('aud123'), false);
+  assert.equal(JSON.stringify(report).includes('supersecret'), false); assert.equal(JSON.stringify(report).includes('sess123'), false);
   assert.ok(report.lastDailyJob.succeeded);
 });
 
@@ -268,7 +268,8 @@ test('the worker wires monitoring, hardening and the daily job report correctly'
   assert.match(src, /job_ok/); assert.match(src, /job_failure/);
   assert.match(src, /x-content-type-options/); assert.match(src, /private, no-store/);
   assert.match(src, /MAX_REQUEST_BYTES/);
-  assert.match(src, /catch \{[^}]*503/s, 'an Access outage fails closed with a retryable message instead of a crash');
+  const signin = await readFile(path.join(root, 'worker/signin.ts'), 'utf8');
+  assert.match(signin, /catch \{[^}]*503/s, 'a Google key outage fails closed with a retryable message instead of a crash');
   assert.ok(src.indexOf('withIdentity(request, env)') < src.indexOf('/_ops/status'), 'the status page is behind sign-in');
 });
 

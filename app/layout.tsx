@@ -50,7 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* The whole site sits behind Cloudflare Access, so the manifest request must carry the sign-in cookie. */}
+        {/* The whole site sits behind sign-in, so the manifest request must carry the session cookie. */}
         <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
