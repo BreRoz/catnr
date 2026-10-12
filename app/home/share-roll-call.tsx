@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { trackEvent } from "../analytics";
 import { Sheet } from "../dialog";
 import RollCallShare from "../records/roll-call-share";
 
@@ -8,7 +9,13 @@ export default function ShareRollCall() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        onClick={() => {
+          trackEvent("roll_call_open");
+          setOpen(true);
+        }}
+      >
         <span className="actionIcon photo" aria-hidden="true">
           ↗
         </span>

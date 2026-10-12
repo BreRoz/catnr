@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { trackEvent } from "./analytics";
 import { createKeyer, post, type Reply } from "./assistant-client";
 import ConfirmCard from "./confirm-card";
 import { Sheet } from "./dialog";
@@ -166,6 +167,7 @@ export default function CaptureSheet({ initial, sessionId, onClose, onSaved }: P
   const submit = async () => {
     stopMic();
     if (busy || (!text.trim() && !photo)) return;
+    trackEvent("capture_submit", { mode, has_photo: !!photo });
     setElapsed(0);
     setBusy("save");
     setReply(null);

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { trackEvent } from "./analytics";
 import { load } from "./assistant-client";
 import CaptureSheet, { drafts, type CaptureMode } from "./capture-sheet";
 import CatHistorySheet, { type CatDetail } from "./cat-history-sheet";
@@ -81,6 +82,7 @@ export default function Home({ name }: { name: string }) {
 
   const openCapture = (mode: CaptureMode, prefill = "") => {
     const keep = mode !== "ask" ? savedDraft : null; // continue an unsent update instead of discarding it
+    trackEvent("capture_open", { mode });
     setBanner(null);
     setCapture({ mode, text: keep?.text || prefill, photo: keep?.photo ?? null });
   };
