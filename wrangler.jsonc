@@ -7,8 +7,6 @@
   "observability": { "enabled": true },
   // Daily retention clean-up (04:15 UTC): wipes finished question photos and old retry records.
   "triggers": { "crons": ["15 4 * * *"] },
-  // Production custom domain. The catnr.com zone must be on this Cloudflare account; the workers.dev address keeps working.
-  "routes": [{ "pattern": "catnr.com", "custom_domain": true }],
   "d1_databases": [
     {
       "binding": "DB",
