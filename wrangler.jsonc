@@ -7,6 +7,10 @@
   "observability": { "enabled": true },
   // Daily retention clean-up (04:15 UTC): wipes finished question photos and old retry records.
   "triggers": { "crons": ["15 4 * * *"] },
+  // Production custom domain. workers_dev stays on so the old catnr.bre999.workers.dev address keeps working.
+  "routes": [{ "pattern": "catnr.com", "custom_domain": true }],
+  "workers_dev": true,
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
