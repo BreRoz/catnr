@@ -6,6 +6,9 @@ export type AuthEnv = { GOOGLE_CLIENT_ID?: string; SESSION_SECRET?: string };
 
 export const PUBLIC_PATHS = new Set(["/signin", "/auth/google", "/auth/signout"]);
 
+// Must match GA_MEASUREMENT_ID in app/analytics.ts (not imported: the signin test loads this file on its own).
+const GA_MEASUREMENT_ID = "G-XS253DDTXH";
+
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export function signInPage(clientId: string, notice = ""): Response {
@@ -13,6 +16,8 @@ export function signInPage(clientId: string, notice = ""): Response {
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign in · Cat Tracker</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_MEASUREMENT_ID}');</script>
 <style>
 body{margin:0;min-height:100vh;display:grid;place-items:center;font:16px/1.5 system-ui,sans-serif;background:#faf7f2;color:#2b2622}
 main{max-width:22rem;padding:2rem 1.25rem;text-align:center}
