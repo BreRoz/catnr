@@ -1,5 +1,5 @@
 // Google Analytics 4. The Measurement ID is public (it ships in every page's HTML).
-export const GA_MEASUREMENT_ID = "G-8MHKQPVQ27";
+export const GA_MEASUREMENT_ID = "G-XS253DDTXH";
 
 // Only the real production addresses report; staging, previews and local dev stay out of the data.
 const GA_HOSTS = ["catnr.com", "catnr.bre999.workers.dev"];
