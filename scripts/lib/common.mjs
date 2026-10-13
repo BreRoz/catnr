@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 export const root = path.resolve(import.meta.dirname, '../..');
 export const ENVIRONMENTS = {
-  production: { worker: 'catnr', database: 'catnr-db', url: 'https://catnr.bre999.workers.dev', envFlag: [] },
+  production: { worker: 'catnr', database: 'catnr-db', url: 'https://catnr.com', envFlag: [] },
   staging: { worker: 'catnr-staging', database: 'catnr-staging-db', url: 'https://catnr-staging.bre999.workers.dev', envFlag: ['--env', 'staging'] },
 };
 

@@ -97,7 +97,7 @@ if (!offline) {
 
 // ---- What a script cannot see: the Google and Cloudflare dashboards ----
 if (target.name === 'production') for (const text of [
-  'Google Cloud Console → APIs & Services → Credentials → the Web OAuth client: Authorized JavaScript origins lists https://catnr.bre999.workers.dev (and nothing you do not use).',
+  'Google Cloud Console → APIs & Services → Credentials → the Web OAuth client: Authorized JavaScript origins lists https://catnr.com and https://catnr.bre999.workers.dev (and nothing you do not use).',
   'Same project → OAuth consent screen: publishing status is "In production" (in "Testing" only listed test users can sign in, and sign-in expires weekly).',
   'Zero Trust → Access → Applications: the old catnr application has been DELETED (a leftover application would still put Cloudflare’s login page in front of the new one).',
   'Workers → catnr → Settings → Variables and Secrets: SESSION_SECRET exists (the live check above shows the site refuses everyone without it).',

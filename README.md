@@ -174,7 +174,7 @@ up**; each person sees only their own records.
 One-time setup:
 
 1. **Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application.** Authorized
-   JavaScript origin: `https://catnr.bre999.workers.dev` (no redirect URI is needed). Set the consent screen to *In production*.
+   JavaScript origins: `https://catnr.com` and `https://catnr.bre999.workers.dev` (no redirect URI is needed). Set the consent screen to *In production*.
 2. Put the client ID in `wrangler.jsonc` as `GOOGLE_CLIENT_ID`.
 3. `npx wrangler secret put SESSION_SECRET` (paste a long random string, e.g. from `openssl rand -base64 48`).
 4. Delete the old Cloudflare Access application (Zero Trust → Access → Applications), otherwise Cloudflare's login page still sits in front of the app.

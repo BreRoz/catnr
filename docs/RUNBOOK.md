@@ -5,7 +5,7 @@ been run at least once against staging unless marked **(documented, not run on p
 
 | Environment | Worker | Database | AI key | Sign-in |
 |---|---|---|---|---|
-| production | `catnr` — https://catnr.bre999.workers.dev | `catnr-db` | yes (`OPENROUTER_API_KEY`) | Google |
+| production | `catnr` — https://catnr.com (also https://catnr.bre999.workers.dev) | `catnr-db` | yes (`OPENROUTER_API_KEY`) | Google |
 | staging | `catnr-staging` — https://catnr-staging.bre999.workers.dev | `catnr-staging-db` (starts empty) | **none, on purpose** | closed (503) until `GOOGLE_CLIENT_ID` under `env.staging` in `wrangler.jsonc` is filled in and `SESSION_SECRET` is set |
 | local | `npm run dev` | local SQLite in `.wrangler/` | `.dev.vars` | none (dev identity `dev@localhost`) |
 
@@ -22,7 +22,7 @@ Never copy production data into staging or local. Use made-up records (the resto
 | `npm run backup` | Full backup of production into `backups/`, then proves it restores. |
 | `npm run restore:test -- backups/<file>.sql` | Replays a backup into a throwaway database and says PASS/FAIL. |
 | `npm run flag -- ai off "reason"` | Emergency switch (see below). `npm run flag -- list` shows them. |
-| `https://catnr.bre999.workers.dev/_ops/status` | (signed in) how this deployment is configured, last 24 h counts; never shows secret values. |
+| `https://catnr.com/_ops/status` | (signed in) how this deployment is configured, last 24 h counts; never shows secret values. |
 
 Check the report daily for the first weeks, after every release, and whenever something feels off.
 
